@@ -1,0 +1,5 @@
+# Ignore compiled web bundles from GitHub language statistics
+public/** linguist-generated=true
+build/** linguist-generated=true
+*.wasm linguist-generated=true
+*.symbols linguist-generated=true
