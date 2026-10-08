@@ -27,6 +27,7 @@ void main() async {
       await Firebase.initializeApp(
         options: const FirebaseOptions(
           apiKey: 'AIzaSyBgfZlPIRHuEy1E9YB66zGZNhG22I8Xcbg',
+          authDomain: 'broml-app.firebaseapp.com',
           appId: '1:640800735490:web:broml_web_placeholder',
           messagingSenderId: '640800735490',
           projectId: 'broml-app',
