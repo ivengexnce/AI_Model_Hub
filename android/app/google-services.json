@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "640800735490",
+    "project_id": "broml-app",
+    "storage_bucket": "broml-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:640800735490:android:e5bd1d38e364882b2b821b",
+        "android_client_info": {
+          "package_name": "com.example.aimodelhub.ai_model_hub"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBgfZlPIRHuEy1E9YB66zGZNhG22I8Xcbg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
