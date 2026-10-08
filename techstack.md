@@ -1,0 +1,7 @@
+Why, Where & How
+Language / Tool	Where It Is Used	Why It Was Chosen	How It Works in BroML
+Dart (Flutter)	Entire application frontend (lib/screens, lib/providers, lib/models, lib/widgets)	Enables building a single codebase that runs with high performance on Android, Web, and iOS with reactive state management and a modern dark UI.	Dart code is compiled Ahead-Of-Time (AOT) to native ARM machine code for Android, and to WebAssembly/JS for browser deployment.
+Kotlin & Gradle	Android build host (android/app, android/settings.gradle.kts)	Standard modern Android runtime and build automation system for packaging native Android dependencies and Google Services.	Gradle resolves plugins like com.google.gms.google-services and bundles Flutter's native engine into the signed APK.
+JSON / NoSQL	Cloud Firestore data models, GitHub API responses, and configuration (google-services.json, vercel.json)	Universal, lightweight, schema-flexible data format for fast network transfers and offline synchronization.	Dart models use fromJson and toJson methods to deserialize remote database records and GitHub repo metadata into typed Dart objects.
+HTML5 & WebAssembly	Web entry point (web/index.html) and compiled output (build/web)	Allows users to access the AI Model Hub instantly on desktop or mobile browsers without installing an APK.	Flutter's web engine mounts the application canvas inside index.html and executes the compiled Dart runtime directly in the browser.
+7:55 PM
