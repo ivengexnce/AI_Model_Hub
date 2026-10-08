@@ -46,7 +46,7 @@ class AiModelHubApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ModelProvider()),
       ],
       child: MaterialApp(
-        title: 'AI Model Hub & Zoo',
+        title: 'BroML',
         debugShowCheckedModeBanner: false,
         theme: _buildTheme(),
         home: const _AppEntry(),

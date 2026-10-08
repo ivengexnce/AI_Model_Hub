@@ -25,7 +25,7 @@ class ModelListScreen extends StatelessWidget {
             Floating3dBadge(icon: Icons.psychology, color: Colors.indigoAccent, size: 28),
             SizedBox(width: 10),
             Text(
-              'AI Model Hub & Zoo',
+              'BroML',
               style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.3),
             ),
           ],

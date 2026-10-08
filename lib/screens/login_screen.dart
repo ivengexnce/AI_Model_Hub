@@ -187,7 +187,7 @@ class _LoginScreenState extends State<LoginScreen>
               ),
               SizedBox(height: 14),
               Text(
-                'AI Model Hub & Zoo',
+                'BroML',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 24,

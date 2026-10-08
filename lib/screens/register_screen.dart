@@ -126,7 +126,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                           size: 30),
                       SizedBox(width: 12),
                       Text(
-                        'Join AI Model Hub',
+                        'Join BroML',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 20,
