@@ -1,11 +1,16 @@
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+
 import '../models/ml_model.dart';
 import '../providers/model_provider.dart';
-import '../widgets/floating_3d_badge.dart';
+import '../theme/app_theme.dart';
+import '../widgets/common_widgets.dart';
+import '../widgets/model_image.dart';
 
 class AddEditModelScreen extends StatefulWidget {
   final MlModel? modelToEdit;
@@ -17,7 +22,10 @@ class AddEditModelScreen extends StatefulWidget {
 }
 
 class _AddEditModelScreenState extends State<AddEditModelScreen> {
+  static const _frameworks = ['PyTorch', 'TensorFlow', 'ONNX', 'Scikit-Learn'];
+
   final _formKey = GlobalKey<FormState>();
+  late final List<String> _categories;
 
   late String _name;
   late String _category;
@@ -30,13 +38,24 @@ class _AddEditModelScreenState extends State<AddEditModelScreen> {
 
   XFile? _selectedImageFile;
 
+  bool get _isEditing => widget.modelToEdit != null;
+
   @override
   void initState() {
     super.initState();
     final model = widget.modelToEdit;
+    _categories = context
+        .read<ModelProvider>()
+        .categories
+        .where((c) => c != 'All')
+        .toList();
     _name = model?.name ?? '';
-    _category = model?.category ?? 'Computer Vision';
-    _framework = model?.framework ?? 'PyTorch';
+    _category = _categories.contains(model?.category)
+        ? model!.category
+        : _categories.first;
+    _framework = _frameworks.contains(model?.framework)
+        ? model!.framework
+        : _frameworks.first;
     _accuracy = model?.accuracy ?? 92.0;
     _latencyMs = model?.latencyMs ?? 15;
     _version = model?.version ?? '1.0.0';
@@ -44,24 +63,27 @@ class _AddEditModelScreenState extends State<AddEditModelScreen> {
     _datasetName = model?.datasetName ?? '';
   }
 
+  double? _parseAccuracy(String? s) =>
+      double.tryParse((s ?? '').trim().replaceAll(',', '.'));
+
   Future<void> _pickImage(ImageSource source) async {
-    final provider = Provider.of<ModelProvider>(context, listen: false);
+    final provider = context.read<ModelProvider>();
     final picked = await provider.pickImage(source);
-    if (picked != null) {
-      setState(() {
-        _selectedImageFile = picked;
-      });
+    if (picked != null && mounted) {
+      setState(() => _selectedImageFile = picked);
     }
   }
 
-  void _submitForm() async {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     _formKey.currentState!.save();
 
-    final provider = Provider.of<ModelProvider>(context, listen: false);
-    bool success;
+    final messenger = ScaffoldMessenger.of(context);
+    final nav = Navigator.of(context);
+    final provider = context.read<ModelProvider>();
+    final bool success;
 
-    if (widget.modelToEdit == null) {
+    if (!_isEditing) {
       success = await provider.createModel(
         name: _name,
         category: _category,
@@ -88,313 +110,262 @@ class _AddEditModelScreenState extends State<AddEditModelScreen> {
       );
     }
 
-    if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+    if (success) {
+      messenger.showSnackBar(
         SnackBar(
-          content: Text(
-            widget.modelToEdit == null
-                ? 'Model published successfully! (HTTP POST)'
-                : 'Model updated successfully! (HTTP PUT)',
-          ),
+          content: Text(_isEditing ? 'Changes saved' : 'Model published'),
         ),
       );
-      Navigator.pop(context);
+      nav.pop();
+    } else {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Couldn’t save the model. Please try again.'),
+        ),
+      );
     }
+  }
+
+  Widget _imagePreview(ColorScheme c, TextTheme t) {
+    final Widget content;
+    if (_selectedImageFile != null) {
+      content = kIsWeb
+          ? Image.network(_selectedImageFile!.path, fit: BoxFit.cover)
+          : Image.file(File(_selectedImageFile!.path), fit: BoxFit.cover);
+    } else if (_isEditing && widget.modelToEdit!.imageUrl.isNotEmpty) {
+      content = ModelImage(url: widget.modelToEdit!.imageUrl);
+    } else {
+      content = Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.add_photo_alternate_outlined,
+            size: 28,
+            color: c.onSurfaceVariant,
+          ),
+          const SizedBox(height: Space.sm),
+          Text('Optional — a placeholder is used if empty', style: t.bodySmall),
+        ],
+      );
+    }
+
+    return AspectRatio(
+      aspectRatio: 16 / 9,
+      child: Container(
+        width: double.infinity,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: c.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(Radii.md),
+          border: Border.all(color: c.outlineVariant),
+        ),
+        child: content,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final isEditing = widget.modelToEdit != null;
-    final provider = Provider.of<ModelProvider>(context);
+    final p = context.watch<ModelProvider>();
+    final c = Theme.of(context).colorScheme;
+    final t = Theme.of(context).textTheme;
+    final gutter = pageGutter(context, maxWidth: 640);
+    const gap = SizedBox(height: Space.lg);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(isEditing ? 'Edit Model Specs' : 'Publish New ML Model'),
-      ),
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.all(20.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      appBar: AppBar(title: Text(_isEditing ? 'Edit model' : 'New model')),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(gutter, Space.sm, gutter, Space.xxxl),
+        child: Form(
+          key: _formKey,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SectionLabel('Cover image'),
+              _imagePreview(c, t),
+              const SizedBox(height: Space.md),
+              Row(
                 children: [
-                  const Text(
-                    'Architecture Diagram / Test Photo',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    height: 180,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF181929),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white.withAlpha(25)),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _pickImage(ImageSource.gallery),
+                      icon: const Icon(Icons.photo_library_outlined, size: 18),
+                      label: const Text('Gallery'),
                     ),
-                    child: _selectedImageFile != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: kIsWeb
-                                ? Image.network(
-                                    _selectedImageFile!.path,
-                                    fit: BoxFit.cover,
-                                    width: double.infinity,
-                                  )
-                                : Image.file(
-                                    File(_selectedImageFile!.path),
-                                    fit: BoxFit.cover,
-                                    width: double.infinity,
-                                  ),
-                          )
-                        : isEditing && widget.modelToEdit!.imageUrl.isNotEmpty
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(16),
-                                child: Image.network(
-                                  widget.modelToEdit!.imageUrl,
-                                  fit: BoxFit.cover,
-                                  width: double.infinity,
-                                ),
-                              )
-                            : Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Floating3dBadge(icon: Icons.cloud_upload, color: Colors.cyanAccent, size: 40),
-                                  const SizedBox(height: 8),
-                                  Text('Upload Diagram / Photo to Firebase Storage',
-                                      style: TextStyle(color: Colors.grey[400])),
-                                ],
-                              ),
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _pickImage(ImageSource.gallery),
-                          icon: const Icon(Icons.photo_library),
-                          label: const Text('Gallery'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _pickImage(ImageSource.camera),
-                          icon: const Icon(Icons.camera_alt),
-                          label: const Text('Camera'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  TextFormField(
-                    initialValue: _name,
-                    decoration: const InputDecoration(
-                      labelText: 'Model Name',
-                      hintText: 'e.g. ResNet-101 Classifier',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.psychology),
-                    ),
-                    validator: (val) => val == null || val.trim().isEmpty ? 'Please enter model name' : null,
-                    onSaved: (val) => _name = val!.trim(),
-                  ),
-                  const SizedBox(height: 16),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          isExpanded: true,
-                          dropdownColor: const Color(0xFF181929),
-                          style: const TextStyle(color: Colors.white, fontSize: 13),
-                          initialValue: provider.categories.contains(_category) ? _category : 'Computer Vision',
-                          decoration: const InputDecoration(
-                            labelText: 'Domain Category',
-                            border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 14),
-                          ),
-                          items: provider.categories
-                              .where((c) => c != 'All')
-                              .map((cat) => DropdownMenuItem(
-                                    value: cat,
-                                    child: Text(
-                                      cat,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(color: Colors.white),
-                                    ),
-                                  ))
-                              .toList(),
-                          onChanged: (val) => setState(() => _category = val!),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          isExpanded: true,
-                          dropdownColor: const Color(0xFF181929),
-                          style: const TextStyle(color: Colors.white, fontSize: 13),
-                          initialValue: ['PyTorch', 'TensorFlow', 'ONNX', 'Scikit-Learn'].contains(_framework)
-                              ? _framework
-                              : 'PyTorch',
-                          decoration: const InputDecoration(
-                            labelText: 'Framework',
-                            border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 14),
-                          ),
-                          items: ['PyTorch', 'TensorFlow', 'ONNX', 'Scikit-Learn']
-                              .map((fw) => DropdownMenuItem(
-                                    value: fw,
-                                    child: Text(
-                                      fw,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(color: Colors.white),
-                                    ),
-                                  ))
-                              .toList(),
-                          onChanged: (val) => setState(() => _framework = val!),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          initialValue: _accuracy.toString(),
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Accuracy %',
-                            hintText: '95.5',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.analytics),
-                          ),
-                          validator: (val) {
-                            if (val == null || double.tryParse(val) == null) return 'Valid number required';
-                            return null;
-                          },
-                          onSaved: (val) => _accuracy = double.parse(val!),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextFormField(
-                          initialValue: _latencyMs.toString(),
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Latency (ms)',
-                            hintText: '12',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.bolt),
-                          ),
-                          validator: (val) {
-                            if (val == null || int.tryParse(val) == null) return 'Valid integer required';
-                            return null;
-                          },
-                          onSaved: (val) => _latencyMs = int.parse(val!),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          initialValue: _version,
-                          decoration: const InputDecoration(
-                            labelText: 'Version Tag',
-                            hintText: '1.0.0',
-                            border: OutlineInputBorder(),
-                          ),
-                          onSaved: (val) => _version = val ?? '1.0.0',
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextFormField(
-                          initialValue: _datasetName,
-                          decoration: const InputDecoration(
-                            labelText: 'Dataset Name',
-                            hintText: 'COCO 2017',
-                            border: OutlineInputBorder(),
-                          ),
-                          validator: (val) => val == null || val.trim().isEmpty ? 'Dataset required' : null,
-                          onSaved: (val) => _datasetName = val!.trim(),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  TextFormField(
-                    initialValue: _description,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'Architecture Description & Training Summary',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (val) => val == null || val.trim().isEmpty ? 'Description required' : null,
-                    onSaved: (val) => _description = val!.trim(),
-                  ),
-                  const SizedBox(height: 28),
-
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton.icon(
-                      onPressed: _submitForm,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.indigo,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      icon: Icon(isEditing ? Icons.save : Icons.cloud_upload),
-                      label: Text(
-                        isEditing ? 'Save Specs (HTTP PUT)' : 'Register Model (HTTP POST & Firebase)',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
+                  const SizedBox(width: Space.md),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _pickImage(ImageSource.camera),
+                      icon: const Icon(Icons.photo_camera_outlined, size: 18),
+                      label: const Text('Camera'),
                     ),
                   ),
                 ],
               ),
-            ),
-          ),
-
-          // Loading Modal Overlay
-          if (provider.isLoading)
-            Positioned.fill(
-              child: Container(
-                color: Colors.black45,
-                child: const Center(
-                  child: Card(
-                    margin: EdgeInsets.all(32),
-                    child: Padding(
-                      padding: EdgeInsets.all(24.0),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Floating3dBadge(icon: Icons.cloud_upload, color: Colors.indigo, size: 40),
-                          SizedBox(height: 16),
-                          Text(
-                            'Uploading image to Firebase Storage & syncing REST API...',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontWeight: FontWeight.bold),
+              const SizedBox(height: Space.xxl),
+              const SectionLabel('Basics'),
+              TextFormField(
+                initialValue: _name,
+                textInputAction: TextInputAction.next,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration(
+                  labelText: 'Model name',
+                  hintText: 'e.g. ResNet-101 classifier',
+                ),
+                validator: (v) => v == null || v.trim().length < 2
+                    ? 'Enter a model name'
+                    : null,
+                onSaved: (v) => _name = v!.trim(),
+              ),
+              gap,
+              DropdownButtonFormField<String>(
+                initialValue: _category,
+                isExpanded: true,
+                style: t.bodyLarge,
+                dropdownColor: c.surfaceContainer,
+                borderRadius: BorderRadius.circular(Radii.sm),
+                decoration: const InputDecoration(labelText: 'Category'),
+                items: [
+                  for (final cat in _categories)
+                    DropdownMenuItem(
+                      value: cat,
+                      child: Text(cat, overflow: TextOverflow.ellipsis),
+                    ),
+                ],
+                onChanged: (v) => setState(() => _category = v ?? _category),
+              ),
+              gap,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _framework,
+                      isExpanded: true,
+                      style: t.bodyLarge,
+                      dropdownColor: c.surfaceContainer,
+                      borderRadius: BorderRadius.circular(Radii.sm),
+                      decoration: const InputDecoration(labelText: 'Framework'),
+                      items: [
+                        for (final fw in _frameworks)
+                          DropdownMenuItem(
+                            value: fw,
+                            child: Text(fw, overflow: TextOverflow.ellipsis),
                           ),
-                        ],
-                      ),
+                      ],
+                      onChanged: (v) =>
+                          setState(() => _framework = v ?? _framework),
                     ),
                   ),
-                ),
+                  const SizedBox(width: Space.md),
+                  Expanded(
+                    child: TextFormField(
+                      initialValue: _version,
+                      textInputAction: TextInputAction.next,
+                      decoration: const InputDecoration(
+                        labelText: 'Version',
+                        hintText: '1.0.0',
+                      ),
+                      validator: (v) =>
+                          v == null || v.trim().isEmpty ? 'Required' : null,
+                      onSaved: (v) => _version = v!.trim(),
+                    ),
+                  ),
+                ],
               ),
-            ),
-        ],
+              const SizedBox(height: Space.xxl),
+              const SectionLabel('Benchmarks'),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      initialValue: _accuracy.toString(),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      textInputAction: TextInputAction.next,
+                      decoration: const InputDecoration(
+                        labelText: 'Accuracy (%)',
+                        hintText: '95.5',
+                      ),
+                      validator: (v) {
+                        final n = _parseAccuracy(v);
+                        if (n == null) return 'Enter a number';
+                        if (n < 0 || n > 100) return 'Between 0 and 100';
+                        return null;
+                      },
+                      onSaved: (v) => _accuracy = _parseAccuracy(v)!,
+                    ),
+                  ),
+                  const SizedBox(width: Space.md),
+                  Expanded(
+                    child: TextFormField(
+                      initialValue: _latencyMs.toString(),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      textInputAction: TextInputAction.next,
+                      decoration: const InputDecoration(
+                        labelText: 'Latency (ms)',
+                        hintText: '12',
+                      ),
+                      validator: (v) => int.tryParse((v ?? '').trim()) == null
+                          ? 'Enter a whole number'
+                          : null,
+                      onSaved: (v) => _latencyMs = int.parse(v!.trim()),
+                    ),
+                  ),
+                ],
+              ),
+              gap,
+              TextFormField(
+                initialValue: _datasetName,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Dataset',
+                  hintText: 'e.g. COCO 2017',
+                ),
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Enter a dataset' : null,
+                onSaved: (v) => _datasetName = v!.trim(),
+              ),
+              const SizedBox(height: Space.xxl),
+              const SectionLabel('About'),
+              TextFormField(
+                initialValue: _description,
+                minLines: 4,
+                maxLines: 8,
+                keyboardType: TextInputType.multiline,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  hintText: 'Architecture, training setup and intended use',
+                  alignLabelWithHint: true,
+                ),
+                validator: (v) => v == null || v.trim().isEmpty
+                    ? 'Enter a description'
+                    : null,
+                onSaved: (v) => _description = v!.trim(),
+              ),
+              const SizedBox(height: Space.xxl),
+              FilledButton(
+                onPressed: p.isLoading ? null : _submit,
+                child: p.isLoading
+                    ? const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ButtonSpinner(),
+                          SizedBox(width: Space.md),
+                          Text('Saving…'),
+                        ],
+                      )
+                    : Text(_isEditing ? 'Save changes' : 'Publish model'),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

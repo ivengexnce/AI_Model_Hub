@@ -3,10 +3,12 @@ import 'package:image_picker/image_picker.dart';
 import '../models/ml_model.dart';
 import '../services/api_service.dart';
 import '../services/firebase_storage_service.dart';
+import '../services/firestore_service.dart';
 
 class ModelProvider with ChangeNotifier {
   final ApiService _apiService = ApiService();
   final FirebaseStorageService _storageService = FirebaseStorageService();
+  final FirestoreService _firestoreService = FirestoreService();
 
   List<MlModel> _models = [];
   bool _isLoading = false;
@@ -61,9 +63,16 @@ class ModelProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      _models = await _apiService.fetchModels();
+      // 1. Try fetching from Cloud Firestore
+      final firestoreModels = await _firestoreService.fetchModels();
+      if (firestoreModels != null && firestoreModels.isNotEmpty) {
+        _models = firestoreModels;
+      } else {
+        // 2. Fallback to ApiService / local dataset
+        _models = await _apiService.fetchModels();
+      }
     } catch (e) {
-      _errorMessage = 'Failed to load models.';
+      _models = await _apiService.fetchModels();
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -107,8 +116,16 @@ class ModelProvider with ChangeNotifier {
         imageUrl: imageUrl,
       );
 
-      final result = await _apiService.createModel(newModel);
-      _models.insert(0, result);
+      // Save to Cloud Firestore if connected
+      final firestoreCreated = await _firestoreService.createModel(newModel);
+      if (firestoreCreated != null) {
+        _models.insert(0, firestoreCreated);
+      } else {
+        // Fallback to local / REST service
+        final result = await _apiService.createModel(newModel);
+        _models.insert(0, result);
+      }
+
       _isLoading = false;
       notifyListeners();
       return true;
@@ -157,10 +174,15 @@ class ModelProvider with ChangeNotifier {
         imageUrl: imageUrl,
       );
 
-      final result = await _apiService.updateModel(updatedModel);
+      // Update in Cloud Firestore if connected
+      final firestoreSuccess = await _firestoreService.updateModel(updatedModel);
+      if (!firestoreSuccess) {
+        await _apiService.updateModel(updatedModel);
+      }
+
       final index = _models.indexWhere((m) => m.id == existingModel.id);
       if (index != -1) {
-        _models[index] = result;
+        _models[index] = updatedModel;
       }
       _isLoading = false;
       notifyListeners();
@@ -178,10 +200,9 @@ class ModelProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      await _firestoreService.deleteModel(id);
       final success = await _apiService.deleteModel(id);
-      if (success) {
-        _models.removeWhere((m) => m.id == id);
-      }
+      _models.removeWhere((m) => m.id == id);
       _isLoading = false;
       notifyListeners();
       return success;

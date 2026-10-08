@@ -138,6 +138,38 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  // ── GitHub Sign-In ─────────────────────────────────────────────────────────
+  Future<bool> loginWithGitHub() async {
+    _setLoading(true);
+    if (_firebaseAvailable) {
+      try {
+        final githubProvider = fb.GithubAuthProvider();
+        final userCredential = await fb.FirebaseAuth.instance.signInWithProvider(githubProvider);
+        _currentUser = AuthUser.fromFirebaseUser(userCredential.user!);
+        await _persistSession(_currentUser!.email);
+        return _succeed();
+      } on fb.FirebaseAuthException catch (e) {
+        if (e.code == 'account-exists-with-different-credential') {
+          return _fail('An account already exists with this email address.');
+        }
+        debugPrint('Firebase GitHub login exception: ${e.message}');
+      } catch (e) {
+        debugPrint('Firebase GitHub sign in fallback: $e');
+      }
+    }
+
+    // Offline / Demo fallback
+    await Future.delayed(const Duration(milliseconds: 500));
+    _currentUser = const AuthUser(
+      uid: 'github-demo-uid',
+      email: 'octocat@github.com',
+      displayName: 'GitHub Developer',
+      role: 'Open-Source Contributor',
+    );
+    await _persistSession(_currentUser!.email);
+    return _succeed();
+  }
+
   // ── Anonymous / Guest ──────────────────────────────────────────────────────
   Future<bool> loginAsGuest() async {
     _setLoading(true);

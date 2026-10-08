@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
 import '../providers/auth_provider.dart';
-import '../widgets/floating_3d_badge.dart';
-import 'model_list_screen.dart';
+import '../widgets/auth_shell.dart';
+import '../widgets/common_widgets.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -16,529 +17,283 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen>
     with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-  final _emailController =
-      TextEditingController(text: 'developer@aimodelhub.ai');
-  final _passwordController =
-      TextEditingController(text: 'neuralnetwork2026');
-  bool _obscurePassword = true;
+  final _email = TextEditingController();
+  final _password = TextEditingController();
+  bool _obscure = true;
   bool _rememberMe = true;
-  late AnimationController _fadeCtrl;
-  late AnimationController _slideCtrl;
-  late Animation<double> _fadeAnim;
-  late Animation<Offset> _slideAnim;
+
+  late final AnimationController _fadeCtrl;
+  late final AnimationController _slideCtrl;
+  late final Animation<double> _fadeAnim;
+  late final Animation<Offset> _slideAnim;
 
   @override
   void initState() {
     super.initState();
+
     _fadeCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 900));
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
     _slideCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 700));
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeInOut);
     _slideAnim = Tween<Offset>(
-            begin: const Offset(0, 0.12), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOut));
+      begin: const Offset(0, 0.12),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOut));
+
     _fadeCtrl.forward();
     _slideCtrl.forward();
-    // Restore session on open
+
+    // Restore persisted session; root route reacts to AuthProvider state.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final auth = Provider.of<AuthProvider>(context, listen: false);
-      await auth.restoreSession();
-      if (auth.isAuthenticated && mounted) {
-        _navigateToHub();
-      }
+      await context.read<AuthProvider>().restoreSession();
     });
   }
 
   @override
   void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
+    _email.dispose();
+    _password.dispose();
     _fadeCtrl.dispose();
     _slideCtrl.dispose();
     super.dispose();
   }
 
-  void _navigateToHub() {
-    Navigator.of(context).pushAndRemoveUntil(
-      PageRouteBuilder(
-        pageBuilder: (ctx, a1, a2) => const ModelListScreen(),
-        transitionDuration: const Duration(milliseconds: 500),
-        transitionsBuilder: (ctx, anim, a2, child) =>
-            FadeTransition(opacity: anim, child: child),
-      ),
-      (route) => false,
-    );
-  }
-
-  Future<void> _submitLogin() async {
+  // Navigation is handled by the root route watching AuthProvider.
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     HapticFeedback.lightImpact();
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-    final ok = await auth.login(
-      _emailController.text,
-      _passwordController.text,
-    );
-    if (ok && mounted) _navigateToHub();
+    await context.read<AuthProvider>().login(_email.text, _password.text);
   }
 
-  Future<void> _googleSignIn() async {
+  Future<void> _google() async {
     HapticFeedback.lightImpact();
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-    final ok = await auth.loginWithGoogle();
-    if (ok && mounted) _navigateToHub();
+    await context.read<AuthProvider>().loginWithGoogle();
   }
 
-  Future<void> _guestLogin() async {
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-    final ok = await auth.loginAsGuest();
-    if (ok && mounted) _navigateToHub();
+  Future<void> _gitHub() async {
+    HapticFeedback.lightImpact();
+    await context.read<AuthProvider>().loginWithGitHub();
   }
+
+  Future<void> _guest() => context.read<AuthProvider>().loginAsGuest();
 
   @override
   Widget build(BuildContext context) {
-    final auth = Provider.of<AuthProvider>(context);
-    final size = MediaQuery.of(context).size;
+    final auth = context.watch<AuthProvider>();
+    final c = Theme.of(context).colorScheme;
+    final t = Theme.of(context).textTheme;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF0D0E1A),
-      body: Stack(
-        children: [
-          // ── Background gradient blobs ─────────────────────────────────────
-          Positioned(
-            top: -80,
-            left: -60,
-            child: _GlowBlob(color: Colors.indigoAccent.withAlpha(60), size: 300),
-          ),
-          Positioned(
-            bottom: -50,
-            right: -70,
-            child: _GlowBlob(color: Colors.purple.withAlpha(50), size: 260),
-          ),
-
-          // ── Main content ──────────────────────────────────────────────────
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 24.0, vertical: 36.0),
-                child: FadeTransition(
-                  opacity: _fadeAnim,
-                  child: SlideTransition(
-                    position: _slideAnim,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: size.width * 0.9),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // ── Header ────────────────────────────────────────
-                          _buildHeader(),
-                          const SizedBox(height: 36),
-
-                          // ── Login Card ────────────────────────────────────
-                          _buildLoginCard(auth),
-                          const SizedBox(height: 20),
-
-                          // ── Divider / Google ──────────────────────────────
-                          _buildSocialSection(auth),
-                          const SizedBox(height: 20),
-
-                          // ── Footer ────────────────────────────────────────
-                          _buildFooter(),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF3949AB), Color(0xFF7B1FA2)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.indigo.withAlpha(100),
-                blurRadius: 30,
-                offset: const Offset(0, 12),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              Container(
-                width: 84,
-                height: 84,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.cyanAccent.withAlpha(80),
-                      blurRadius: 20,
-                      spreadRadius: 2,
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Image.asset(
-                    'assets/logo.png',
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'BroML',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Deploy · Benchmark · Inspect Neural Architectures',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 12.5,
-                  letterSpacing: 0.2,
-                ),
-              ),
-            ],
-          ),
-        ),
+    return AuthShell(
+      title: 'Sign in',
+      subtitle: 'Access your model registry.',
+      // Glow blobs are painted behind the shell's content via its background
+      // slot; if AuthShell doesn't expose one, wrap at Scaffold level instead.
+      backgroundDecoration: const [
+        _GlowBlob(color: Color(0x3C3D5AFE), size: 300, top: -80, left: -60),
+        _GlowBlob(color: Color(0x327B1FA2), size: 260, bottom: -50, right: -70),
       ],
-    );
-  }
-
-  Widget _buildLoginCard(AuthProvider auth) {
-    return Container(
-      padding: const EdgeInsets.all(26),
-      decoration: BoxDecoration(
-        color: const Color(0xFF181929),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withAlpha(15)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(60),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Welcome Back 👋',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Sign in to access your neural model registry',
-              style: TextStyle(fontSize: 13, color: Colors.grey[400]),
-            ),
-            const SizedBox(height: 22),
-
-            // Error banner
-            if (auth.errorMessage != null) ...[
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 10),
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: Colors.red.withAlpha(25),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.red.withAlpha(80)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.error_outline,
-                        color: Colors.redAccent, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        auth.errorMessage!,
-                        style: const TextStyle(
-                            color: Colors.redAccent, fontSize: 13),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-
-            // Email
-            _darkField(
-              controller: _emailController,
-              label: 'Email Address',
-              icon: Icons.email_outlined,
-              keyboardType: TextInputType.emailAddress,
-              validator: (val) {
-                if (val == null || val.trim().isEmpty) {
-                  return 'Email is required';
-                }
-                if (!auth.isEmailValid(val)) {
-                  return 'Enter a valid email address';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 14),
-
-            // Password
-            _darkField(
-              controller: _passwordController,
-              label: 'Password',
-              icon: Icons.lock_outline,
-              obscure: _obscurePassword,
-              suffix: IconButton(
-                icon: Icon(
-                  _obscurePassword
-                      ? Icons.visibility_off
-                      : Icons.visibility,
-                  color: Colors.grey[500],
-                  size: 20,
-                ),
-                onPressed: () =>
-                    setState(() => _obscurePassword = !_obscurePassword),
-              ),
-              validator: (val) {
-                if (val == null || val.trim().isEmpty) {
-                  return 'Password is required';
-                }
-                if (!auth.isPasswordValid(val)) {
-                  return 'Password must be at least 6 characters';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 10),
-
-            // Remember me + Forgot
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        FadeTransition(
+          opacity: _fadeAnim,
+          child: SlideTransition(
+            position: _slideAnim,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (auth.errorMessage != null) ...[
+                  ErrorBanner(auth.errorMessage!),
+                  const SizedBox(height: Space.lg),
+                ],
+                AutofillGroup(
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        TextFormField(
+                          controller: _email,
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          autofillHints: const [AutofillHints.email],
+                          decoration: const InputDecoration(
+                            labelText: 'Email',
+                            prefixIcon: Icon(Icons.email_outlined, size: 20),
+                          ),
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) {
+                              return 'Enter your email';
+                            }
+                            if (!auth.isEmailValid(v)) {
+                              return 'Enter a valid email address';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: Space.lg),
+                        TextFormField(
+                          controller: _password,
+                          obscureText: _obscure,
+                          textInputAction: TextInputAction.done,
+                          autofillHints: const [AutofillHints.password],
+                          onFieldSubmitted: (_) => _submit(),
+                          decoration: InputDecoration(
+                            labelText: 'Password',
+                            prefixIcon: const Icon(
+                              Icons.lock_outline,
+                              size: 20,
+                            ),
+                            suffixIcon: IconButton(
+                              tooltip: _obscure
+                                  ? 'Show password'
+                                  : 'Hide password',
+                              icon: Icon(
+                                _obscure
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                                size: 20,
+                              ),
+                              onPressed: () =>
+                                  setState(() => _obscure = !_obscure),
+                            ),
+                          ),
+                          validator: (v) {
+                            if (v == null || v.isEmpty) {
+                              return 'Enter your password';
+                            }
+                            if (!auth.isPasswordValid(v)) {
+                              return 'At least 6 characters';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: Space.md),
+
+                        // Remember me + Forgot password
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                SizedBox(
+                                  height: 24,
+                                  width: 24,
+                                  child: Checkbox(
+                                    value: _rememberMe,
+                                    onChanged: (v) =>
+                                        setState(() => _rememberMe = v ?? true),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Remember me',
+                                  style: t.bodySmall?.copyWith(
+                                    color: c.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            TextButton(
+                              onPressed: () => _showForgotPassword(context),
+                              child: const Text('Forgot password?'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: Space.xl),
+
+                        FilledButton(
+                          onPressed: auth.isLoading ? null : _submit,
+                          child: auth.isLoading
+                              ? const ButtonSpinner()
+                              : const Text('Sign in'),
+                        ),
+                        const SizedBox(height: Space.sm),
+                        OutlinedButton.icon(
+                          onPressed: auth.isLoading ? null : _guest,
+                          icon: const Icon(Icons.bolt_rounded, size: 18),
+                          label: const Text('Quick demo (guest)'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: Space.xl),
+
                 Row(
                   children: [
-                    SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: Checkbox(
-                        value: _rememberMe,
-                        activeColor: Colors.indigoAccent,
-                        side: const BorderSide(color: Colors.grey),
-                        onChanged: (val) =>
-                            setState(() => _rememberMe = val ?? true),
-                      ),
+                    const Expanded(child: Divider()),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: Space.md),
+                      child: Text('or continue with', style: t.bodySmall),
                     ),
-                    const SizedBox(width: 8),
-                    Text('Remember me',
-                        style: TextStyle(
-                            fontSize: 12, color: Colors.grey[400])),
+                    const Expanded(child: Divider()),
                   ],
                 ),
-                TextButton(
-                  onPressed: () => _showForgotPassword(context),
-                  child: const Text('Forgot Password?',
-                      style:
-                          TextStyle(fontSize: 12, color: Colors.indigoAccent)),
+                const SizedBox(height: Space.lg),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: auth.isLoading ? null : _google,
+                        icon: const _GoogleIcon(),
+                        label: const Text('Google'),
+                      ),
+                    ),
+                    const SizedBox(width: Space.md),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: auth.isLoading ? null : _gitHub,
+                        icon: const _GitHubIcon(),
+                        label: const Text('GitHub'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: Space.lg),
+
+                Center(
+                  child: Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        'New to BroML?',
+                        style: t.bodyMedium?.copyWith(
+                          color: c.onSurfaceVariant,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const RegisterScreen(),
+                          ),
+                        ),
+                        child: const Text('Create an account'),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 18),
-
-            // Sign In Button
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: auth.isLoading ? null : _submitLogin,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.indigo,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: Colors.indigo.withAlpha(100),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                  elevation: 6,
-                ),
-                child: auth.isLoading
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2.5))
-                    : const Text('Sign In to BroML Hub',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold)),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Guest Button
-            SizedBox(
-              width: double.infinity,
-              height: 46,
-              child: OutlinedButton.icon(
-                onPressed: auth.isLoading ? null : _guestLogin,
-                style: OutlinedButton.styleFrom(
-                  side:
-                      BorderSide(color: Colors.indigo.withAlpha(150)),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                ),
-                icon: const Icon(Icons.bolt_rounded,
-                    color: Colors.indigoAccent, size: 20),
-                label: const Text('Quick Demo Sign-In (Guest)',
-                    style: TextStyle(
-                        color: Colors.indigoAccent,
-                        fontWeight: FontWeight.w600)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSocialSection(AuthProvider auth) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(child: Divider(color: Colors.white.withAlpha(25))),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Text('or continue with',
-                  style: TextStyle(color: Colors.grey[500], fontSize: 12)),
-            ),
-            Expanded(child: Divider(color: Colors.white.withAlpha(25))),
-          ],
-        ),
-        const SizedBox(height: 14),
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: OutlinedButton.icon(
-            onPressed: auth.isLoading ? null : _googleSignIn,
-            style: OutlinedButton.styleFrom(
-              side: BorderSide(color: Colors.white.withAlpha(30)),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
-              backgroundColor: const Color(0xFF222336),
-            ),
-            icon: const _GoogleIcon(),
-            label: const Text('Continue with Google',
-                style: TextStyle(
-                    color: Colors.white70, fontWeight: FontWeight.w600)),
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildFooter() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text("Don't have an account?",
-            style: TextStyle(color: Colors.grey[500], fontSize: 13)),
-        TextButton(
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const RegisterScreen()),
-          ),
-          child: const Text('Create Account',
-              style: TextStyle(
-                  color: Colors.indigoAccent,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13)),
-        ),
-      ],
-    );
-  }
-
-  Widget _darkField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    TextInputType? keyboardType,
-    bool obscure = false,
-    Widget? suffix,
-    String? Function(String?)? validator,
-  }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      obscureText: obscure,
-      style: const TextStyle(color: Colors.white, fontSize: 14),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(color: Colors.grey[500], fontSize: 13),
-        prefixIcon: Icon(icon, color: Colors.indigo, size: 20),
-        suffixIcon: suffix,
-        filled: true,
-        fillColor: const Color(0xFF222336),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide:
-              BorderSide(color: Colors.white.withAlpha(20)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide:
-              const BorderSide(color: Colors.indigoAccent, width: 1.4),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide:
-              const BorderSide(color: Colors.redAccent, width: 1.2),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide:
-              const BorderSide(color: Colors.redAccent, width: 1.4),
-        ),
-      ),
-      validator: validator,
     );
   }
 
   void _showForgotPassword(BuildContext context) {
-    final emailCtrl = TextEditingController();
+    final ctrl = TextEditingController();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF181929),
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(
           left: 24,
@@ -550,57 +305,39 @@ class _LoginScreenState extends State<LoginScreen>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Reset Password',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold)),
+            Text(
+              'Reset password',
+              style: Theme.of(ctx).textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
-            Text('Enter your email to receive a reset link.',
-                style:
-                    TextStyle(color: Colors.grey[400], fontSize: 13)),
+            Text(
+              'Enter your email to receive a reset link.',
+              style: Theme.of(ctx).textTheme.bodySmall,
+            ),
             const SizedBox(height: 18),
             TextFormField(
-              controller: emailCtrl,
-              style: const TextStyle(color: Colors.white),
+              controller: ctrl,
               keyboardType: TextInputType.emailAddress,
-              decoration: InputDecoration(
-                labelText: 'Email Address',
-                labelStyle:
-                    TextStyle(color: Colors.grey[500]),
-                filled: true,
-                fillColor: const Color(0xFF222336),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none),
-              ),
+              textInputAction: TextInputAction.done,
+              autofillHints: const [AutofillHints.email],
+              decoration: const InputDecoration(labelText: 'Email'),
             ),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: () async {
-                  if (emailCtrl.text.trim().isNotEmpty) {
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                            'Reset link sent to ${emailCtrl.text.trim()}'),
-                        backgroundColor: Colors.indigoAccent,
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  }
+              child: FilledButton(
+                onPressed: () {
+                  if (ctrl.text.trim().isEmpty) return;
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Reset link sent to ${ctrl.text.trim()}'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.indigo,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Send Reset Link',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
+                child: const Text('Send reset link'),
               ),
             ),
           ],
@@ -610,48 +347,89 @@ class _LoginScreenState extends State<LoginScreen>
   }
 }
 
-// ── Glow blob decoration widget ───────────────────────────────────────────────
+// ── Glow blob ─────────────────────────────────────────────────────────────────
+// If AuthShell doesn't accept a backgroundDecoration parameter, position these
+// in a Stack above your Scaffold's body instead.
 class _GlowBlob extends StatelessWidget {
   final Color color;
   final double size;
-  const _GlowBlob({required this.color, required this.size});
+  final double? top;
+  final double? bottom;
+  final double? left;
+  final double? right;
+
+  const _GlowBlob({
+    required this.color,
+    required this.size,
+    this.top,
+    this.bottom,
+    this.left,
+    this.right,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color,
+    return Positioned(
+      top: top,
+      bottom: bottom,
+      left: left,
+      right: right,
+      child: IgnorePointer(
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+        ),
       ),
     );
   }
 }
 
-// ── Google icon widget ────────────────────────────────────────────────────────
+// ── Google icon ───────────────────────────────────────────────────────────────
 class _GoogleIcon extends StatelessWidget {
   const _GoogleIcon();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 20,
-      height: 20,
+      width: 18,
+      height: 18,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(3),
       ),
-      child: const Center(
-        child: Text(
-          'G',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Color(0xFF4285F4),
-            fontSize: 14,
-            fontWeight: FontWeight.w900,
-          ),
+      alignment: Alignment.center,
+      child: const Text(
+        'G',
+        style: TextStyle(
+          color: Color(0xFF4285F4),
+          fontSize: 13,
+          fontWeight: FontWeight.w900,
         ),
+      ),
+    );
+  }
+}
+
+// ── GitHub icon ───────────────────────────────────────────────────────────────
+class _GitHubIcon extends StatelessWidget {
+  const _GitHubIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: 18,
+      height: 18,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: isDark ? Colors.white : Colors.black,
+      ),
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.terminal_rounded,
+        size: 12,
+        color: isDark ? Colors.black : Colors.white,
       ),
     );
   }

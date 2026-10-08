@@ -1,314 +1,228 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+
 import '../models/ml_model.dart';
 import '../providers/model_provider.dart';
-import '../widgets/floating_3d_badge.dart';
+import '../theme/app_theme.dart';
+import '../widgets/common_widgets.dart';
+import '../widgets/model_image.dart';
 import 'add_edit_model_screen.dart';
 
 class ModelDetailScreen extends StatelessWidget {
-  final MlModel model;
-
   const ModelDetailScreen({super.key, required this.model});
+
+  final MlModel model;
 
   @override
   Widget build(BuildContext context) {
+    // Re-read from the provider so edits show up without reopening the screen.
+    final m = context.select<ModelProvider, MlModel>(
+      (p) => p.models.firstWhere((x) => x.id == model.id, orElse: () => model),
+    );
+    final busy = context.select<ModelProvider, bool>((p) => p.isLoading);
+
+    final c = Theme.of(context).colorScheme;
+    final t = Theme.of(context).textTheme;
+    final gutter = pageGutter(context);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0E1A),
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            backgroundColor: const Color(0xFF181929),
-            iconTheme: const IconThemeData(color: Colors.white),
-            expandedHeight: 260,
-            pinned: true,
-            flexibleSpace: FlexibleSpaceBar(
-              title: Text(
-                model.name,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  shadows: [Shadow(color: Colors.black87, blurRadius: 10)],
+      appBar: AppBar(),
+      body: ListView(
+        padding: EdgeInsets.fromLTRB(gutter, Space.sm, gutter, Space.xxxl),
+        children: [
+          Text(
+            m.category.toUpperCase(),
+            style: t.labelSmall?.copyWith(color: c.primary),
+          ),
+          const SizedBox(height: Space.sm),
+          Text(m.name, style: t.headlineMedium),
+          const SizedBox(height: Space.xl),
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: ModelImage(url: m.imageUrl, radius: Radii.md),
+          ),
+          const SizedBox(height: Space.xl),
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: Space.lg),
+            decoration: BoxDecoration(
+              border: Border.symmetric(
+                horizontal: BorderSide(color: c.outlineVariant),
+              ),
+            ),
+            child: IntrinsicHeight(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _Metric(
+                      label: 'Accuracy',
+                      value: m.accuracy.toStringAsFixed(1),
+                      unit: '%',
+                    ),
+                  ),
+                  const VerticalDivider(width: 1),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: Space.xl),
+                      child: _Metric(
+                        label: 'Latency',
+                        value: '${m.latencyMs}',
+                        unit: 'ms',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: Space.xxl),
+          const SectionLabel('Specifications'),
+          _SpecRow(label: 'Framework', value: m.framework),
+          const Divider(),
+          _SpecRow(label: 'Dataset', value: m.datasetName),
+          const Divider(),
+          _SpecRow(label: 'Version', value: m.version, mono: true),
+          const SizedBox(height: Space.xxl),
+          const SectionLabel('About'),
+          Text(m.description, style: t.bodyLarge?.copyWith(height: 1.55)),
+          const SizedBox(height: Space.xxl),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton(
+                  onPressed: busy
+                      ? null
+                      : () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => AddEditModelScreen(modelToEdit: m),
+                          ),
+                        ),
+                  child: const Text('Edit model'),
                 ),
               ),
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  CachedNetworkImage(
-                    imageUrl: model.imageUrl,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      color: const Color(0xFF181929),
-                      child: const Center(child: CircularProgressIndicator(color: Colors.cyanAccent)),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      color: const Color(0xFF181929),
-                      child: const Icon(Icons.psychology, size: 80, color: Colors.indigoAccent),
-                    ),
-                  ),
-                  Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.transparent,
-                          Color(0xFF0D0E1A),
-                        ],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.edit, color: Colors.white),
-                tooltip: 'Edit Model Specs',
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => AddEditModelScreen(modelToEdit: model),
-                    ),
-                  );
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.white),
-                tooltip: 'Unregister Model',
-                onPressed: () => _confirmDelete(context),
+              const SizedBox(width: Space.md),
+              OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: c.error,
+                  side: BorderSide(color: c.error.withValues(alpha: 0.5)),
+                ),
+                onPressed: busy ? null : () => _delete(context, m),
+                child: const Text('Delete'),
               ),
             ],
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Chip(
-                        avatar: const Floating3dBadge(icon: Icons.category, color: Colors.cyanAccent, size: 16),
-                        label: Text(model.category),
-                        backgroundColor: const Color(0xFF181929),
-                        side: BorderSide(color: Colors.cyanAccent.withAlpha(50)),
-                        labelStyle: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(width: 8),
-                      Chip(
-                        avatar: const Floating3dBadge(icon: Icons.verified, color: Colors.tealAccent, size: 16),
-                        label: Text('Version ${model.version}'),
-                        backgroundColor: const Color(0xFF181929),
-                        side: BorderSide(color: Colors.tealAccent.withAlpha(50)),
-                        labelStyle: const TextStyle(color: Colors.tealAccent, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  const Text(
-                    'Performance Benchmarks',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildMetricTile(
-                          'Accuracy',
-                          '${model.accuracy}%',
-                          Icons.insights,
-                          Colors.greenAccent,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildMetricTile(
-                          'Inference Speed',
-                          '${model.latencyMs} ms',
-                          Icons.bolt,
-                          Colors.amberAccent,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildMetricTile(
-                          'Framework',
-                          model.framework,
-                          Icons.memory,
-                          Colors.lightBlueAccent,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  _buildSectionHeader('Training & Evaluation Dataset', Icons.dataset),
-                  const SizedBox(height: 8),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF181929),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white.withAlpha(25)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Floating3dBadge(icon: Icons.storage, color: Colors.cyanAccent, size: 20),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            model.datasetName,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  _buildSectionHeader('Model Summary & Architecture Details', Icons.description),
-                  const SizedBox(height: 8),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF181929),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white.withAlpha(25)),
-                    ),
-                    child: Text(
-                      model.description,
-                      style: const TextStyle(fontSize: 15, height: 1.5, color: Colors.white70),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => AddEditModelScreen(modelToEdit: model),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.edit),
-                          label: const Text('Edit Model (HTTP PUT)'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.indigo,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      OutlinedButton.icon(
-                        onPressed: () => _confirmDelete(context),
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        label: const Text('Delete (HTTP DELETE)', style: TextStyle(color: Colors.red)),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                          side: const BorderSide(color: Colors.red),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 40),
-                ],
-              ),
-            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSectionHeader(String title, IconData icon) {
-    return Row(
+  Future<void> _delete(BuildContext context, MlModel m) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final nav = Navigator.of(context);
+    final provider = context.read<ModelProvider>();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete model?'),
+        content: Text(
+          '“${m.name}” will be removed from the registry. This can’t be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final ok = await provider.deleteModel(m.id);
+    if (ok) {
+      nav.pop();
+      messenger.showSnackBar(const SnackBar(content: Text('Model deleted')));
+    } else {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Couldn’t delete the model. Try again.')),
+      );
+    }
+  }
+}
+
+class _Metric extends StatelessWidget {
+  const _Metric({required this.label, required this.value, required this.unit});
+
+  final String label;
+  final String value;
+  final String unit;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    final t = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: Colors.cyanAccent, size: 20),
-        const SizedBox(width: 8),
         Text(
-          title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+          label.toUpperCase(),
+          style: t.labelSmall?.copyWith(color: c.onSurfaceVariant),
+        ),
+        const SizedBox(height: Space.sm),
+        Text.rich(
+          TextSpan(
+            text: value,
+            style: AppTheme.mono(size: 28, color: c.onSurface),
+            children: [
+              TextSpan(
+                text: ' $unit',
+                style: AppTheme.mono(size: 14, color: c.onSurfaceVariant),
+              ),
+            ],
+          ),
         ),
       ],
     );
   }
+}
 
-  Widget _buildMetricTile(String label, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF181929),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withAlpha(25)),
-      ),
-      child: Column(
+class _SpecRow extends StatelessWidget {
+  const _SpecRow({required this.label, required this.value, this.mono = false});
+
+  final String label;
+  final String value;
+  final bool mono;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    final t = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Floating3dBadge(icon: icon, color: color, size: 20),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 15,
-              color: color,
+          SizedBox(
+            width: 110,
+            child: Text(
+              label,
+              style: t.bodyMedium?.copyWith(color: c.onSurfaceVariant),
             ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(fontSize: 11, color: Colors.grey[400]),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _confirmDelete(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Unregister Model'),
-        content: Text('Are you sure you want to unregister "${model.name}"? This action sends an HTTP DELETE request.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              final provider = Provider.of<ModelProvider>(context, listen: false);
-              final success = await provider.deleteModel(model.id);
-              if (success && context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Model unregistered successfully.')),
-                );
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          Expanded(
+            child: Text(
+              value,
+              style: mono
+                  ? AppTheme.mono(size: 14, color: c.onSurface)
+                  : t.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+            ),
           ),
         ],
       ),
