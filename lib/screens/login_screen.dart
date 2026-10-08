@@ -60,14 +60,14 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   void _navigateToHub() {
-    Navigator.pushReplacement(
-      context,
+    Navigator.of(context).pushAndRemoveUntil(
       PageRouteBuilder(
         pageBuilder: (ctx, a1, a2) => const ModelListScreen(),
         transitionDuration: const Duration(milliseconds: 500),
         transitionsBuilder: (ctx, anim, a2, child) =>
             FadeTransition(opacity: anim, child: child),
       ),
+      (route) => false,
     );
   }
 
@@ -178,25 +178,41 @@ class _LoginScreenState extends State<LoginScreen>
               ),
             ],
           ),
-          child: const Column(
+          child: Column(
             children: [
-              Floating3dBadge(
-                icon: Icons.psychology_alt_rounded,
-                color: Colors.white,
-                size: 48,
+              Container(
+                width: 84,
+                height: 84,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.cyanAccent.withAlpha(80),
+                      blurRadius: 20,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Image.asset(
+                    'assets/logo.png',
+                    fit: BoxFit.cover,
+                  ),
+                ),
               ),
-              SizedBox(height: 14),
-              Text(
+              const SizedBox(height: 14),
+              const Text(
                 'BroML',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 24,
+                  fontSize: 26,
                   fontWeight: FontWeight.bold,
-                  letterSpacing: 0.4,
+                  letterSpacing: 0.5,
                 ),
               ),
-              SizedBox(height: 6),
-              Text(
+              const SizedBox(height: 6),
+              const Text(
                 'Deploy · Benchmark · Inspect Neural Architectures',
                 textAlign: TextAlign.center,
                 style: TextStyle(

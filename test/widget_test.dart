@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ai_model_hub/main.dart';
@@ -30,5 +31,19 @@ void main() {
 
     // Verify navigating to the Model List screen
     expect(find.text('Models Registered'), findsOneWidget);
+
+    // Verify account popup menu button is present and trigger logout
+    final popupBtnFinder = find.byType(PopupMenuButton<String>);
+    expect(popupBtnFinder, findsOneWidget);
+    final popupBtn = tester.widget<PopupMenuButton<String>>(popupBtnFinder);
+    popupBtn.onSelected?.call('logout');
+
+    // Allow async logout and route transition to finish
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    // Verify navigating back to LoginScreen
+    expect(find.text('Sign In to BroML Hub'), findsOneWidget);
   });
 }

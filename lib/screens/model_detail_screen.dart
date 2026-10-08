@@ -14,10 +14,12 @@ class ModelDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: const Color(0xFF0D0E1A),
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
+            backgroundColor: const Color(0xFF181929),
+            iconTheme: const IconThemeData(color: Colors.white),
             expandedHeight: 260,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
@@ -36,12 +38,12 @@ class ModelDetailScreen extends StatelessWidget {
                     imageUrl: model.imageUrl,
                     fit: BoxFit.cover,
                     placeholder: (context, url) => Container(
-                      color: Colors.grey[300],
-                      child: const Center(child: CircularProgressIndicator()),
+                      color: const Color(0xFF181929),
+                      child: const Center(child: CircularProgressIndicator(color: Colors.cyanAccent)),
                     ),
                     errorWidget: (context, url, error) => Container(
-                      color: Colors.indigo[900],
-                      child: const Icon(Icons.psychology, size: 80, color: Colors.white),
+                      color: const Color(0xFF181929),
+                      child: const Icon(Icons.psychology, size: 80, color: Colors.indigoAccent),
                     ),
                   ),
                   Container(
@@ -49,7 +51,7 @@ class ModelDetailScreen extends StatelessWidget {
                       gradient: LinearGradient(
                         colors: [
                           Colors.transparent,
-                          Colors.black87,
+                          Color(0xFF0D0E1A),
                         ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
@@ -88,17 +90,19 @@ class ModelDetailScreen extends StatelessWidget {
                   Row(
                     children: [
                       Chip(
-                        avatar: const Floating3dBadge(icon: Icons.category, color: Colors.indigo, size: 16),
+                        avatar: const Floating3dBadge(icon: Icons.category, color: Colors.cyanAccent, size: 16),
                         label: Text(model.category),
-                        backgroundColor: Colors.indigo[50],
-                        labelStyle: const TextStyle(color: Colors.indigo, fontWeight: FontWeight.bold),
+                        backgroundColor: const Color(0xFF181929),
+                        side: BorderSide(color: Colors.cyanAccent.withAlpha(50)),
+                        labelStyle: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(width: 8),
                       Chip(
-                        avatar: const Floating3dBadge(icon: Icons.verified, color: Colors.teal, size: 16),
+                        avatar: const Floating3dBadge(icon: Icons.verified, color: Colors.tealAccent, size: 16),
                         label: Text('Version ${model.version}'),
-                        backgroundColor: Colors.teal[50],
-                        labelStyle: const TextStyle(color: Colors.teal, fontWeight: FontWeight.bold),
+                        backgroundColor: const Color(0xFF181929),
+                        side: BorderSide(color: Colors.tealAccent.withAlpha(50)),
+                        labelStyle: const TextStyle(color: Colors.tealAccent, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
@@ -106,7 +110,7 @@ class ModelDetailScreen extends StatelessWidget {
 
                   const Text(
                     'Performance Benchmarks',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -116,7 +120,7 @@ class ModelDetailScreen extends StatelessWidget {
                           'Accuracy',
                           '${model.accuracy}%',
                           Icons.insights,
-                          Colors.green,
+                          Colors.greenAccent,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -125,7 +129,7 @@ class ModelDetailScreen extends StatelessWidget {
                           'Inference Speed',
                           '${model.latencyMs} ms',
                           Icons.bolt,
-                          Colors.orange,
+                          Colors.amberAccent,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -134,7 +138,7 @@ class ModelDetailScreen extends StatelessWidget {
                           'Framework',
                           model.framework,
                           Icons.memory,
-                          Colors.blue,
+                          Colors.lightBlueAccent,
                         ),
                       ),
                     ],
@@ -147,13 +151,13 @@ class ModelDetailScreen extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey[300]!),
+                      color: const Color(0xFF181929),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withAlpha(25)),
                     ),
                     child: Row(
                       children: [
-                        const Floating3dBadge(icon: Icons.storage, color: Colors.deepPurple, size: 20),
+                        const Floating3dBadge(icon: Icons.storage, color: Colors.cyanAccent, size: 20),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
@@ -161,6 +165,7 @@ class ModelDetailScreen extends StatelessWidget {
                             style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
+                              color: Colors.white,
                             ),
                           ),
                         ),
@@ -175,13 +180,13 @@ class ModelDetailScreen extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey[300]!),
+                      color: const Color(0xFF181929),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withAlpha(25)),
                     ),
                     child: Text(
                       model.description,
-                      style: const TextStyle(fontSize: 15, height: 1.5),
+                      style: const TextStyle(fontSize: 15, height: 1.5, color: Colors.white70),
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -238,11 +243,11 @@ class ModelDetailScreen extends StatelessWidget {
   Widget _buildSectionHeader(String title, IconData icon) {
     return Row(
       children: [
-        Icon(icon, color: Colors.indigo, size: 20),
+        Icon(icon, color: Colors.cyanAccent, size: 20),
         const SizedBox(width: 8),
         Text(
           title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
         ),
       ],
     );
@@ -252,9 +257,9 @@ class ModelDetailScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[300]!),
+        color: const Color(0xFF181929),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withAlpha(25)),
       ),
       child: Column(
         children: [
@@ -271,7 +276,7 @@ class ModelDetailScreen extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             label,
-            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+            style: TextStyle(fontSize: 11, color: Colors.grey[400]),
             textAlign: TextAlign.center,
           ),
         ],

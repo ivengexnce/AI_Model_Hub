@@ -117,15 +117,28 @@ class _RegisterScreenState extends State<RegisterScreen>
                       ),
                     ],
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Floating3dBadge(
-                          icon: Icons.hub_rounded,
-                          color: Colors.white,
-                          size: 30),
-                      SizedBox(width: 12),
-                      Text(
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.cyanAccent.withAlpha(80),
+                              blurRadius: 10,
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image.asset('assets/logo_small.png', fit: BoxFit.cover),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
                         'Join BroML',
                         style: TextStyle(
                           color: Colors.white,

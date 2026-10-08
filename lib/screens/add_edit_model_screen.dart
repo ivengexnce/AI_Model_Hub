@@ -122,16 +122,16 @@ class _AddEditModelScreenState extends State<AddEditModelScreen> {
                 children: [
                   const Text(
                     'Architecture Diagram / Test Photo',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
                   ),
                   const SizedBox(height: 8),
                   Container(
                     height: 180,
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      color: Colors.grey[200],
+                      color: const Color(0xFF181929),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey[400]!),
+                      border: Border.all(color: Colors.white.withAlpha(25)),
                     ),
                     child: _selectedImageFile != null
                         ? ClipRRect(
@@ -160,10 +160,10 @@ class _AddEditModelScreenState extends State<AddEditModelScreen> {
                             : Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Floating3dBadge(icon: Icons.cloud_upload, color: Colors.indigo, size: 40),
+                                  const Floating3dBadge(icon: Icons.cloud_upload, color: Colors.cyanAccent, size: 40),
                                   const SizedBox(height: 8),
                                   Text('Upload Diagram / Photo to Firebase Storage',
-                                      style: TextStyle(color: Colors.grey[700])),
+                                      style: TextStyle(color: Colors.grey[400])),
                                 ],
                               ),
                   ),
@@ -206,14 +206,25 @@ class _AddEditModelScreenState extends State<AddEditModelScreen> {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          dropdownColor: const Color(0xFF181929),
+                          style: const TextStyle(color: Colors.white, fontSize: 13),
                           initialValue: provider.categories.contains(_category) ? _category : 'Computer Vision',
                           decoration: const InputDecoration(
                             labelText: 'Domain Category',
                             border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 14),
                           ),
                           items: provider.categories
                               .where((c) => c != 'All')
-                              .map((cat) => DropdownMenuItem(value: cat, child: Text(cat, overflow: TextOverflow.ellipsis)))
+                              .map((cat) => DropdownMenuItem(
+                                    value: cat,
+                                    child: Text(
+                                      cat,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(color: Colors.white),
+                                    ),
+                                  ))
                               .toList(),
                           onChanged: (val) => setState(() => _category = val!),
                         ),
@@ -221,15 +232,26 @@ class _AddEditModelScreenState extends State<AddEditModelScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          dropdownColor: const Color(0xFF181929),
+                          style: const TextStyle(color: Colors.white, fontSize: 13),
                           initialValue: ['PyTorch', 'TensorFlow', 'ONNX', 'Scikit-Learn'].contains(_framework)
                               ? _framework
                               : 'PyTorch',
                           decoration: const InputDecoration(
                             labelText: 'Framework',
                             border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 14),
                           ),
                           items: ['PyTorch', 'TensorFlow', 'ONNX', 'Scikit-Learn']
-                              .map((fw) => DropdownMenuItem(value: fw, child: Text(fw)))
+                              .map((fw) => DropdownMenuItem(
+                                    value: fw,
+                                    child: Text(
+                                      fw,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(color: Colors.white),
+                                    ),
+                                  ))
                               .toList(),
                           onChanged: (val) => setState(() => _framework = val!),
                         ),

@@ -9,6 +9,7 @@ import '../widgets/flip_3d_card.dart';
 import '../widgets/floating_3d_badge.dart';
 import 'model_detail_screen.dart';
 import 'add_edit_model_screen.dart';
+import 'login_screen.dart';
 
 class ModelListScreen extends StatelessWidget {
   const ModelListScreen({super.key});
@@ -18,21 +19,41 @@ class ModelListScreen extends StatelessWidget {
     final modelProvider = Provider.of<ModelProvider>(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FA),
+      backgroundColor: const Color(0xFF0D0E1A),
       appBar: AppBar(
-        title: const Row(
+        title: Row(
           children: [
-            Floating3dBadge(icon: Icons.psychology, color: Colors.indigoAccent, size: 28),
-            SizedBox(width: 10),
-            Text(
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.cyanAccent.withAlpha(80),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.asset('assets/logo_small.png', fit: BoxFit.cover),
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text(
               'BroML',
-              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.3),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.4,
+                color: Colors.white,
+              ),
             ),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: () => modelProvider.loadModels(),
             tooltip: 'Refresh Models',
           ),
@@ -51,9 +72,27 @@ class ModelListScreen extends StatelessWidget {
                   ),
                 ),
                 tooltip: 'Account Profile',
-                onSelected: (value) {
+                onSelected: (value) async {
                   if (value == 'logout') {
-                    auth.logout();
+                    final messenger = ScaffoldMessenger.of(context);
+                    await auth.logout();
+                    if (context.mounted) {
+                      Navigator.of(context).pushAndRemoveUntil(
+                        PageRouteBuilder(
+                          pageBuilder: (ctx, a1, a2) => const LoginScreen(),
+                          transitionDuration: const Duration(milliseconds: 350),
+                          transitionsBuilder: (ctx, anim, a2, child) =>
+                              FadeTransition(opacity: anim, child: child),
+                        ),
+                        (route) => false,
+                      );
+                      messenger.showSnackBar(
+                        const SnackBar(
+                          content: Text('Successfully signed out.'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    }
                   }
                 },
                 itemBuilder: (context) => [
@@ -64,11 +103,11 @@ class ModelListScreen extends StatelessWidget {
                       children: [
                         Text(
                           auth.currentUser?.displayName ?? 'ML Engineer',
-                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
                         ),
                         Text(
                           auth.currentUser?.email ?? 'developer@aimodelhub.ai',
-                          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                          style: const TextStyle(fontSize: 11, color: Colors.white70),
                         ),
                       ],
                     ),
@@ -78,9 +117,9 @@ class ModelListScreen extends StatelessWidget {
                     value: 'logout',
                     child: Row(
                       children: [
-                        Icon(Icons.logout, size: 18, color: Colors.red),
+                        Icon(Icons.logout, size: 18, color: Colors.redAccent),
                         SizedBox(width: 8),
-                        Text('Sign Out', style: TextStyle(color: Colors.red)),
+                        Text('Sign Out', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600)),
                       ],
                     ),
                   ),
@@ -91,7 +130,7 @@ class ModelListScreen extends StatelessWidget {
           const SizedBox(width: 8),
         ],
         elevation: 0,
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFF181929),
       ),
       body: RefreshIndicator(
         onRefresh: () => modelProvider.loadModels(),
@@ -115,20 +154,22 @@ class ModelListScreen extends StatelessWidget {
                         ],
                       ),
                       child: TextField(
+                        style: const TextStyle(color: Colors.white),
                         onChanged: (value) => modelProvider.setSearchQuery(value),
                         decoration: InputDecoration(
                           hintText: 'Search models, frameworks, datasets...',
-                          prefixIcon: const Icon(Icons.search, color: Colors.indigo),
+                          hintStyle: TextStyle(color: Colors.grey[400]),
+                          prefixIcon: const Icon(Icons.search, color: Colors.cyanAccent),
                           filled: true,
-                          fillColor: Colors.white,
+                          fillColor: const Color(0xFF181929),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide.none,
+                            borderSide: BorderSide(color: Colors.white.withAlpha(20)),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide.none,
+                            borderSide: BorderSide(color: Colors.white.withAlpha(20)),
                           ),
                         ),
                       ),
@@ -159,10 +200,13 @@ class ModelListScreen extends StatelessWidget {
                                 elevation: isSelected ? 4 : 1,
                                 shadowColor: Colors.indigo.withAlpha(80),
                                 labelStyle: TextStyle(
-                                  color: isSelected ? Colors.white : Colors.black87,
+                                  color: isSelected ? Colors.white : Colors.grey[300],
                                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                                 ),
-                                backgroundColor: Colors.white,
+                                backgroundColor: const Color(0xFF181929),
+                                side: BorderSide(
+                                  color: isSelected ? Colors.indigoAccent : Colors.white.withAlpha(25),
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(20),
                                 ),
@@ -175,7 +219,7 @@ class ModelListScreen extends StatelessWidget {
                     const SizedBox(height: 12),
                     Text(
                       'Double-tap card to flip 3D specs view. Hover/drag for 3D tilt.',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[400], fontStyle: FontStyle.italic),
                     ),
                   ],
                 ),
@@ -323,8 +367,16 @@ class ModelListScreen extends StatelessWidget {
   Widget _buildCardFront(MlModel model) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFF181929),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withAlpha(25)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(80),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -338,13 +390,13 @@ class ModelListScreen extends StatelessWidget {
               fit: BoxFit.cover,
               placeholder: (context, url) => Container(
                 height: 160,
-                color: Colors.grey[200],
-                child: const Center(child: CircularProgressIndicator()),
+                color: const Color(0xFF222336),
+                child: const Center(child: CircularProgressIndicator(color: Colors.cyanAccent)),
               ),
               errorWidget: (context, url, error) => Container(
                 height: 160,
-                color: Colors.indigo[50],
-                child: const Icon(Icons.broken_image, size: 48, color: Colors.indigo),
+                color: const Color(0xFF222336),
+                child: const Icon(Icons.broken_image, size: 48, color: Colors.indigoAccent),
               ),
             ),
           ),
@@ -359,13 +411,13 @@ class ModelListScreen extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.indigo[50],
+                        color: Colors.indigoAccent.withAlpha(35),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         model.category,
                         style: const TextStyle(
-                          color: Colors.indigo,
+                          color: Colors.cyanAccent,
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                         ),
@@ -373,7 +425,7 @@ class ModelListScreen extends StatelessWidget {
                     ),
                     Text(
                       'v${model.version}',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: Colors.grey[400], fontSize: 12, fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
@@ -383,6 +435,7 @@ class ModelListScreen extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -390,27 +443,27 @@ class ModelListScreen extends StatelessWidget {
                   model.description,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                  style: TextStyle(color: Colors.grey[300], fontSize: 13),
                 ),
                 const SizedBox(height: 12),
-                const Divider(),
+                const Divider(color: Colors.white12),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     _buildMetricChip(
                       Icons.check_circle_outline,
                       '${model.accuracy}% Acc',
-                      Colors.green[700]!,
+                      Colors.greenAccent,
                     ),
                     _buildMetricChip(
                       Icons.bolt,
                       '${model.latencyMs} ms',
-                      Colors.orange[800]!,
+                      Colors.amberAccent,
                     ),
                     _buildMetricChip(
                       Icons.layers,
                       model.framework,
-                      Colors.blue[800]!,
+                      Colors.lightBlueAccent,
                     ),
                   ],
                 ),
