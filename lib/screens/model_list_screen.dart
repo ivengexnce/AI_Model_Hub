@@ -9,6 +9,8 @@ import '../widgets/common_widgets.dart';
 import '../widgets/model_card.dart';
 import 'add_edit_model_screen.dart';
 import 'model_detail_screen.dart';
+import 'login_screen.dart';
+import 'github_browser_screen.dart';
 
 class ModelListScreen extends StatefulWidget {
   const ModelListScreen({super.key});
@@ -140,8 +142,24 @@ class _ModelListScreenState extends State<ModelListScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Row(
-                        children: [BrandMark(), Spacer(), _AccountMenu()],
+                      Row(
+                        children: [
+                          const BrandMark(),
+                          const Spacer(),
+                          IconButton(
+                            tooltip: 'Browse GitHub Models',
+                            icon: const Icon(Icons.terminal_rounded),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const GithubBrowserScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          const _AccountMenu(),
+                        ],
                       ),
                       const SizedBox(height: Space.xxl),
                       Text('Models', style: t.displaySmall),
@@ -259,8 +277,16 @@ class _AccountMenu extends StatelessWidget {
     return PopupMenuButton<String>(
       tooltip: 'Account',
       offset: const Offset(0, 44),
-      onSelected: (v) {
-        if (v == 'signout') context.read<AuthProvider>().logout();
+      onSelected: (v) async {
+        if (v == 'signout') {
+          await context.read<AuthProvider>().logout();
+          if (context.mounted) {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const LoginScreen()),
+              (route) => false,
+            );
+          }
+        }
       },
       itemBuilder: (_) => [
         PopupMenuItem<String>(
