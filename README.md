@@ -12,7 +12,7 @@
   <a href="https://flutter.dev"><img src="https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white" alt="Flutter" /></a>
   <a href="https://dart.dev"><img src="https://img.shields.io/badge/Dart-3.x-0175C2?logo=dart&logoColor=white" alt="Dart" /></a>
   <img src="https://img.shields.io/badge/Material_3-Supported-7B1FA2" alt="Material 3" />
-  <a href="https://firebase.google.com"><img src="https://img.shields.io/badge/Firebase-Integrated-FFCA28?logo=firebase&logoColor=black" alt="Firebase" /></a>
+  <a href="https://firebase.google.com"><img src="https://img.shields.io/badge/Firebase-broml--app-FFCA28?logo=firebase&logoColor=black" alt="Firebase" /></a>
   <img src="https://img.shields.io/badge/Tests-7%20Passed-success" alt="Tests" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green" alt="License" /></a>
 </p>
@@ -21,26 +21,41 @@
 
 ## 🚀 Overview
 
-**BroML** (*Neural Architecture Hub & Model Registry*) is an advanced cross-platform application engineered with Flutter. Built for machine learning researchers, engineers, and developers, BroML enables real-time exploration, benchmarking, inspection, and cloud synchronization of deep learning models across **Computer Vision**, **Natural Language Processing (NLP)**, **Audio / Speech**, and **Multimodal** domains.
+**BroML** (*Neural Architecture Hub & Model Registry*) is a cross-platform mobile application engineered with Flutter. Built for machine learning researchers, engineers, and developers, BroML enables real-time exploration, benchmarking, architectural inspection, and cloud synchronization of deep learning models across **Computer Vision**, **Natural Language Processing (NLP)**, **Audio / Speech**, and **Multimodal** domains.
 
-BroML connects with **Google Firebase** (Authentication, Cloud Firestore, Cloud Storage) and the **GitHub REST API v3** for live repository discovery, featuring high-fidelity **interactive 3D perspective cards** for architectural visualization.
+BroML connects with **Google Firebase** (Authentication, Cloud Firestore, Cloud Storage) and the **GitHub REST API v3** for repository discovery, featuring high-fidelity **interactive 3D perspective cards** for architectural visualization.
 
 ---
 
-## 📦 Latest Release: v1.1.0
+## 📦 Latest Release: v1.2.0
 
-Download the production-ready Android binary directly:
+Download the production-ready Android binary:
 
-* **Direct APK Download**: [`BroML-release.apk`](BroML-release.apk) (60.5 MB)
-* **Release Version**: `v1.1.0` (Build `2`)
+* **Direct APK File**: [`BroML-release.apk`](BroML-release.apk)
+* **Release Version**: `v1.2.0` (Build `3`)
 * **Package Name**: `com.example.aimodelhub.ai_model_hub`
-* **Signing**: Release signed with SHA-1 fingerprint registered in Firebase Console.
+* **Firebase Project**: `broml-app` (Connected & Verified)
+* **Signing**: Signed with Android debug certificate (matching registered Firebase SHA-1 / SHA-256).
 
 ### 📲 Quick Install via ADB
-Connect your phone with USB or Wireless debugging enabled, then execute:
 ```powershell
 adb install -r BroML-release.apk
 ```
+
+---
+
+## 🔥 Firebase Integration & Verification Status
+
+BroML is connected to Google Firebase under the project **`broml-app`**:
+
+| Firebase Service | Status | Configuration Details |
+| :--- | :--- | :--- |
+| **Firebase Core** | ✅ Connected | Native auto-initialization via `com.google.gms.google-services` plugin and `google-services.json` (`project_number: 640800735490`) |
+| **Google Sign-In (OAuth)** | ✅ Connected | Web Client ID `640800735490-vnk6dgbf23o80nlis3150cpp485omfsp.apps.googleusercontent.com` with SHA-1 `2D:2C:A3:07:5F:DC:07:B4:59:57:18:E3:FC:D5:7D:2F:99:44:3A:EA` |
+| **Firebase Auth (Email/Pass)** | ✅ Connected | Email sign-in, user registration, and live credential validation |
+| **Anonymous / Guest Auth** | ✅ Connected | Ephemeral demo sessions with live Firebase UID |
+| **Cloud Firestore** | ✅ Connected | Live NoSQL sync on collection `'models'` with offline cache fallback |
+| **Firebase Cloud Storage** | ✅ Connected | Bucket `broml-app.firebasestorage.app` for custom model architecture diagrams |
 
 ---
 
@@ -65,12 +80,7 @@ adb install -r BroML-release.apk
 
 ### 📊 Benchmark Metrics & Deep Architecture Inspection
 * **Live Stats Header**: Real-time aggregation of registered models, average accuracy (%), and active frameworks.
-* **Model Detail Screen**: Deep inspection view displaying:
-  * Accuracy benchmarks (% Top-1 / F1 score)
-  * Hardware latency (ms / sample)
-  * Parameter counts & model weights
-  * Supported input/output tensor shapes
-  * Paper citations and direct repository links
+* **Model Detail Screen**: Deep inspection view displaying accuracy benchmarks, hardware latency, parameters, input/output shapes, citations, and repository links.
 
 ### 🛠️ Model Publisher & Editor
 * Publish new neural network architectures to Cloud Firestore.
@@ -80,7 +90,8 @@ adb install -r BroML-release.apk
 
 ## 🏛️ System Architecture & Flowcharts
 
-The system follows a clean **Layered Reactive Architecture** separating presentation, state orchestration, domain models, and external services:
+The system follows a clean **Layered Reactive Architecture**:
+* Complete technical specification: 📖 **[ARCHITECTURE.md](ARCHITECTURE.md)**
 
 ```mermaid
 graph TD
@@ -111,9 +122,6 @@ graph TD
     H --> J & K
     F --> L
 ```
-
-For the complete technical specification, lifecycles, and sequence diagrams, see:
-📖 **[ARCHITECTURE.md](ARCHITECTURE.md)**
 
 ---
 
