@@ -178,7 +178,7 @@ class _GithubBrowserScreenState extends State<GithubBrowserScreen> {
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: _categories.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    separatorBuilder: (_, _) => const SizedBox(width: 8),
                     itemBuilder: (context, index) {
                       final cat = _categories[index];
                       final isSelected = cat == _selectedCategory;
@@ -300,7 +300,7 @@ class _GithubBrowserScreenState extends State<GithubBrowserScreen> {
                     width: 42,
                     height: 42,
                     fit: BoxFit.cover,
-                    placeholder: (_, __) => Container(color: Colors.grey[800]),
+                    placeholder: (_, _) => Container(color: Colors.grey[800]),
                     errorWidget: (context, url, error) => Container(
                       color: Colors.indigo,
                       child: const Icon(Icons.code, color: Colors.white, size: 20),

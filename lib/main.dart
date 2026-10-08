@@ -26,27 +26,27 @@ void main() async {
     if (kIsWeb) {
       await Firebase.initializeApp(
         options: const FirebaseOptions(
-          apiKey: 'AIzaSyDemoKeyForModelHubOfflineMode123',
-          appId: '1:100000000000:web:1000000000000000000000',
-          messagingSenderId: '100000000000',
-          projectId: 'ai-model-hub-demo',
-          storageBucket: 'ai-model-hub-demo.appspot.com',
+          apiKey: 'AIzaSyBgfZlPIRHuEy1E9YB66zGZNhG22I8Xcbg',
+          appId: '1:640800735490:web:broml_web_placeholder',
+          messagingSenderId: '640800735490',
+          projectId: 'broml-app',
+          storageBucket: 'broml-app.firebasestorage.app',
         ),
       );
     } else {
       await Firebase.initializeApp(
         options: const FirebaseOptions(
-          apiKey: 'AIzaSyDemoKeyForModelHubOfflineMode123',
-          appId: '1:100000000000:android:1000000000000000000000',
-          messagingSenderId: '100000000000',
-          projectId: 'ai-model-hub-demo',
-          storageBucket: 'ai-model-hub-demo.appspot.com',
+          apiKey: 'AIzaSyBgfZlPIRHuEy1E9YB66zGZNhG22I8Xcbg',
+          appId: '1:640800735490:android:e5bd1d38e364882b2b821b',
+          messagingSenderId: '640800735490',
+          projectId: 'broml-app',
+          storageBucket: 'broml-app.firebasestorage.app',
         ),
       );
     }
-    debugPrint('Firebase initialised (offline demo keys).');
+    debugPrint('Firebase initialised for broml-app.');
   } catch (e) {
-    debugPrint('Firebase offline fallback mode: $e');
+    debugPrint('Firebase initialization fallback: $e');
   }
 
   runApp(const AiModelHubApp());

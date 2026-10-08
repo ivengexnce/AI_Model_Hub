@@ -19,24 +19,24 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(find.text('BroML'), findsOneWidget);
-    expect(find.textContaining('Welcome Back'), findsOneWidget);
-    expect(find.text('Sign In to BroML Hub'), findsOneWidget);
+    expect(find.text('Sign in'), findsWidgets);
+    expect(find.text('GitHub'), findsOneWidget);
 
     // Ensure demo button is visible and tap
-    final demoBtn = find.text('Quick Demo Sign-In (Guest)');
+    final demoBtn = find.text('Quick demo (guest)');
     await tester.ensureVisible(demoBtn);
     await tester.pump(const Duration(milliseconds: 100));
     await tester.tap(demoBtn);
     await tester.pump(const Duration(milliseconds: 1200));
 
     // Verify navigating to the Model List screen
-    expect(find.text('Models Registered'), findsOneWidget);
+    expect(find.text('Models'), findsOneWidget);
 
     // Verify account popup menu button is present and trigger logout
     final popupBtnFinder = find.byType(PopupMenuButton<String>);
     expect(popupBtnFinder, findsOneWidget);
     final popupBtn = tester.widget<PopupMenuButton<String>>(popupBtnFinder);
-    popupBtn.onSelected?.call('logout');
+    popupBtn.onSelected?.call('signout');
 
     // Allow async logout and route transition to finish
     await tester.pump();
@@ -44,6 +44,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
 
     // Verify navigating back to LoginScreen
-    expect(find.text('Sign In to BroML Hub'), findsOneWidget);
+    expect(find.text('Sign in'), findsWidgets);
   });
 }

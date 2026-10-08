@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../models/ml_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/model_provider.dart';
-import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/model_card.dart';
 import 'add_edit_model_screen.dart';
@@ -108,7 +107,7 @@ class _ModelListScreenState extends State<ModelListScreen> {
         padding: EdgeInsets.fromLTRB(gutter, Space.lg, gutter, 96),
         sliver: SliverList.separated(
           itemCount: items.length,
-          separatorBuilder: (_, __) => const SizedBox(height: Space.md),
+          separatorBuilder: (_, _) => const SizedBox(height: Space.md),
           itemBuilder: (_, i) => ModelCard(
             key: ValueKey(items[i].id),
             model: items[i],
@@ -201,7 +200,7 @@ class _ModelListScreenState extends State<ModelListScreen> {
                     scrollDirection: Axis.horizontal,
                     padding: EdgeInsets.symmetric(horizontal: gutter),
                     itemCount: p.categories.length,
-                    separatorBuilder: (_, __) =>
+                    separatorBuilder: (_, _) =>
                         const SizedBox(width: Space.sm),
                     itemBuilder: (_, i) {
                       final cat = p.categories[i];

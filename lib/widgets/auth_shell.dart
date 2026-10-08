@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_theme.dart';
 import 'common_widgets.dart';
 
 class AuthShell extends StatelessWidget {
@@ -26,7 +25,7 @@ class AuthShell extends StatelessWidget {
       appBar: Navigator.canPop(context) ? AppBar() : null,
       body: Stack(
         children: [
-          if (backgroundDecoration != null) ...backgroundDecoration!,
+          ...?backgroundDecoration,
           SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -54,8 +53,10 @@ class AuthShell extends StatelessWidget {
               ),
             ),
           ),
-        ],
+        ),
       ),
-    );
+    ],
+  ),
+);
   }
 }

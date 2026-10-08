@@ -8,7 +8,6 @@ import 'package:provider/provider.dart';
 
 import '../models/ml_model.dart';
 import '../providers/model_provider.dart';
-import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/model_image.dart';
 
@@ -35,6 +34,7 @@ class _AddEditModelScreenState extends State<AddEditModelScreen> {
   late String _version;
   late String _description;
   late String _datasetName;
+  late String _githubUrl;
 
   XFile? _selectedImageFile;
 
@@ -61,6 +61,7 @@ class _AddEditModelScreenState extends State<AddEditModelScreen> {
     _version = model?.version ?? '1.0.0';
     _description = model?.description ?? '';
     _datasetName = model?.datasetName ?? '';
+    _githubUrl = model?.githubUrl ?? '';
   }
 
   double? _parseAccuracy(String? s) =>
@@ -93,6 +94,7 @@ class _AddEditModelScreenState extends State<AddEditModelScreen> {
         version: _version,
         description: _description,
         datasetName: _datasetName,
+        githubUrl: _githubUrl,
         imageFile: _selectedImageFile,
       );
     } else {
@@ -106,6 +108,7 @@ class _AddEditModelScreenState extends State<AddEditModelScreen> {
         version: _version,
         description: _description,
         datasetName: _datasetName,
+        githubUrl: _githubUrl,
         newImageFile: _selectedImageFile,
       );
     }
@@ -330,6 +333,18 @@ class _AddEditModelScreenState extends State<AddEditModelScreen> {
                 validator: (v) =>
                     v == null || v.trim().isEmpty ? 'Enter a dataset' : null,
                 onSaved: (v) => _datasetName = v!.trim(),
+              ),
+              gap,
+              TextFormField(
+                initialValue: _githubUrl,
+                keyboardType: TextInputType.url,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'GitHub Repository Link (Optional)',
+                  hintText: 'https://github.com/username/project',
+                  prefixIcon: Icon(Icons.code_rounded),
+                ),
+                onSaved: (v) => _githubUrl = (v ?? '').trim(),
               ),
               const SizedBox(height: Space.xxl),
               const SectionLabel('About'),

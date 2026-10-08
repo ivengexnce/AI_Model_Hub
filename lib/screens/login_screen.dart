@@ -177,27 +177,41 @@ class _LoginScreenState extends State<LoginScreen>
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
-                              children: [
-                                SizedBox(
-                                  height: 24,
-                                  width: 24,
-                                  child: Checkbox(
-                                    value: _rememberMe,
-                                    onChanged: (v) =>
-                                        setState(() => _rememberMe = v ?? true),
-                                  ),
+                            Flexible(
+                              child: InkWell(
+                                onTap: () => setState(() => _rememberMe = !_rememberMe),
+                                borderRadius: BorderRadius.circular(4),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: Checkbox(
+                                        value: _rememberMe,
+                                        onChanged: (v) =>
+                                            setState(() => _rememberMe = v ?? true),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Flexible(
+                                      child: Text(
+                                        'Remember me',
+                                        style: t.bodySmall?.copyWith(
+                                          color: c.onSurfaceVariant,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Remember me',
-                                  style: t.bodySmall?.copyWith(
-                                    color: c.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
                             TextButton(
+                              style: TextButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                              ),
                               onPressed: () => _showForgotPassword(context),
                               child: const Text('Forgot password?'),
                             ),

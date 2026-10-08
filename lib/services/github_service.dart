@@ -108,6 +108,7 @@ class GithubRepo {
       description: description,
       datasetName: 'GitHub: $fullName',
       imageUrl: ownerAvatarUrl.isNotEmpty ? ownerAvatarUrl : 'https://picsum.photos/seed/$name/600/400',
+      githubUrl: htmlUrl,
     );
   }
 }

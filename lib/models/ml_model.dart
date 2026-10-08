@@ -9,6 +9,7 @@ class MlModel {
   final String description;
   final String datasetName;
   final String imageUrl;
+  final String githubUrl;
 
   MlModel({
     required this.id,
@@ -21,6 +22,7 @@ class MlModel {
     required this.description,
     required this.datasetName,
     required this.imageUrl,
+    this.githubUrl = '',
   });
 
   factory MlModel.fromJson(Map<String, dynamic> json) {
@@ -35,6 +37,7 @@ class MlModel {
       description: json['description'] ?? 'No description provided.',
       datasetName: json['datasetName'] ?? 'Custom Dataset',
       imageUrl: json['imageUrl'] ?? json['thumbnail'] ?? 'https://picsum.photos/400/300',
+      githubUrl: json['githubUrl'] ?? json['repoUrl'] ?? '',
     );
   }
 
@@ -50,6 +53,7 @@ class MlModel {
       'description': description,
       'datasetName': datasetName,
       'imageUrl': imageUrl,
+      'githubUrl': githubUrl,
     };
   }
 
@@ -64,6 +68,7 @@ class MlModel {
     String? description,
     String? datasetName,
     String? imageUrl,
+    String? githubUrl,
   }) {
     return MlModel(
       id: id ?? this.id,
@@ -76,6 +81,7 @@ class MlModel {
       description: description ?? this.description,
       datasetName: datasetName ?? this.datasetName,
       imageUrl: imageUrl ?? this.imageUrl,
+      githubUrl: githubUrl ?? this.githubUrl,
     );
   }
 }

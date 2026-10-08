@@ -34,9 +34,9 @@ class ModelImage extends StatelessWidget {
                 fit: BoxFit.cover,
                 memCacheWidth: memCacheWidth,
                 fadeInDuration: const Duration(milliseconds: 150),
-                placeholder: (_, __) =>
+                placeholder: (_, _) =>
                     ColoredBox(color: c.surfaceContainerHigh),
-                errorWidget: (_, __, ___) => fallback,
+                errorWidget: (_, _, _) => fallback,
               ),
       ),
     );

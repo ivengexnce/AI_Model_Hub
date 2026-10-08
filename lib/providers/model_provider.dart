@@ -88,6 +88,7 @@ class ModelProvider with ChangeNotifier {
     required String version,
     required String description,
     required String datasetName,
+    String githubUrl = '',
     XFile? imageFile,
   }) async {
     _isLoading = true;
@@ -114,6 +115,7 @@ class ModelProvider with ChangeNotifier {
         description: description,
         datasetName: datasetName,
         imageUrl: imageUrl,
+        githubUrl: githubUrl,
       );
 
       // Save to Cloud Firestore if connected
@@ -147,6 +149,7 @@ class ModelProvider with ChangeNotifier {
     required String version,
     required String description,
     required String datasetName,
+    String? githubUrl,
     XFile? newImageFile,
   }) async {
     _isLoading = true;
@@ -172,6 +175,7 @@ class ModelProvider with ChangeNotifier {
         description: description,
         datasetName: datasetName,
         imageUrl: imageUrl,
+        githubUrl: githubUrl ?? existingModel.githubUrl,
       );
 
       // Update in Cloud Firestore if connected

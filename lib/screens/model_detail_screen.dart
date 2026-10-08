@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../models/ml_model.dart';
 import '../providers/model_provider.dart';
-import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/model_image.dart';
 import 'add_edit_model_screen.dart';
@@ -81,9 +81,29 @@ class ModelDetailScreen extends StatelessWidget {
           _SpecRow(label: 'Dataset', value: m.datasetName),
           const Divider(),
           _SpecRow(label: 'Version', value: m.version, mono: true),
+          if (m.githubUrl.isNotEmpty) ...[
+            const Divider(),
+            _SpecRow(label: 'GitHub', value: m.githubUrl, mono: true),
+          ],
           const SizedBox(height: Space.xxl),
           const SectionLabel('About'),
           Text(m.description, style: t.bodyLarge?.copyWith(height: 1.55)),
+          if (m.githubUrl.isNotEmpty) ...[
+            const SizedBox(height: Space.lg),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.code_rounded),
+              label: const Text('Copy GitHub Repository Link'),
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: m.githubUrl));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Copied: ${m.githubUrl}'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+            ),
+          ],
           const SizedBox(height: Space.xxl),
           Row(
             children: [
