@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -135,11 +136,17 @@ class _AddEditModelScreenState extends State<AddEditModelScreen> {
                     child: _selectedImageFile != null
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(16),
-                            child: Image.file(
-                              File(_selectedImageFile!.path),
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                            ),
+                            child: kIsWeb
+                                ? Image.network(
+                                    _selectedImageFile!.path,
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                  )
+                                : Image.file(
+                                    File(_selectedImageFile!.path),
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                  ),
                           )
                         : isEditing && widget.modelToEdit!.imageUrl.isNotEmpty
                             ? ClipRRect(
