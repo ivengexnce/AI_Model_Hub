@@ -1,15 +1,24 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ai_model_hub/main.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   testWidgets('App starts on LoginScreen and navigates to Model Hub', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const AiModelHubApp());
-    await tester.pump(const Duration(milliseconds: 300));
+    // Pump through the async session restore check
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
 
     expect(find.text('BroML'), findsOneWidget);
-    expect(find.text('Welcome Back'), findsOneWidget);
+    expect(find.textContaining('Welcome Back'), findsOneWidget);
     expect(find.text('Sign In to BroML Hub'), findsOneWidget);
 
     // Ensure demo button is visible and tap

@@ -375,7 +375,7 @@ class _LoginScreenState extends State<LoginScreen>
                         height: 22,
                         child: CircularProgressIndicator(
                             color: Colors.white, strokeWidth: 2.5))
-                    : const Text('Sign In to Model Hub',
+                    : const Text('Sign In to BroML Hub',
                         style: TextStyle(
                             fontSize: 16, fontWeight: FontWeight.bold)),
               ),
@@ -613,28 +613,30 @@ class _GlowBlob extends StatelessWidget {
   }
 }
 
-// ── Google icon painter ───────────────────────────────────────────────────────
+// ── Google icon widget ────────────────────────────────────────────────────────
 class _GoogleIcon extends StatelessWidget {
   const _GoogleIcon();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 22,
-      height: 22,
-      decoration: const BoxDecoration(
-        image: DecorationImage(
-          image: NetworkImage(
-              'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg'),
-          fit: BoxFit.contain,
-        ),
+      width: 20,
+      height: 20,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(4),
       ),
-      child: const Text('G',
+      child: const Center(
+        child: Text(
+          'G',
           textAlign: TextAlign.center,
           style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold)),
+            color: Color(0xFF4285F4),
+            fontSize: 14,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
     );
   }
 }
