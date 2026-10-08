@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+﻿import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -21,7 +21,7 @@ void main() async {
     ]);
   }
 
-  // Try live Firebase; fall back gracefully if not configured yet
+  // Initialize Firebase
   try {
     if (kIsWeb) {
       await Firebase.initializeApp(
@@ -35,19 +35,23 @@ void main() async {
         ),
       );
     } else {
-      await Firebase.initializeApp(
-        options: const FirebaseOptions(
-          apiKey: 'AIzaSyBgfZlPIRHuEy1E9YB66zGZNhG22I8Xcbg',
-          appId: '1:640800735490:android:e5bd1d38e364882b2b821b',
-          messagingSenderId: '640800735490',
-          projectId: 'broml-app',
-          storageBucket: 'broml-app.firebasestorage.app',
-        ),
-      );
+      try {
+        await Firebase.initializeApp();
+      } catch (_) {
+        await Firebase.initializeApp(
+          options: const FirebaseOptions(
+            apiKey: 'AIzaSyBgfZlPIRHuEy1E9YB66zGZNhG22I8Xcbg',
+            appId: '1:640800735490:android:e5bd1d38e364882b2b821b',
+            messagingSenderId: '640800735490',
+            projectId: 'broml-app',
+            storageBucket: 'broml-app.firebasestorage.app',
+          ),
+        );
+      }
     }
     debugPrint('Firebase initialised for broml-app.');
   } catch (e) {
-    debugPrint('Firebase initialization fallback: $e');
+    debugPrint('Firebase initialization error: $e');
   }
 
   runApp(const AiModelHubApp());
@@ -122,3 +126,4 @@ class _AppEntryState extends State<_AppEntry> {
     );
   }
 }
+

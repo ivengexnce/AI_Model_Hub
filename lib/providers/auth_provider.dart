@@ -1,5 +1,4 @@
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:google_sign_in/google_sign_in.dart';
@@ -24,34 +23,29 @@ class AuthUser {
   });
 
   factory AuthUser.fromFirebaseUser(fb.User user, {bool isGuest = false}) {
-    final namePart = (user.displayName?.isNotEmpty == true)
-        ? user.displayName!
-        : user.email?.split('@').first ?? 'ML Engineer';
-    final displayName =
-        '${namePart[0].toUpperCase()}${namePart.substring(1)}';
+    final String displayName;
+    if (user.displayName != null && user.displayName!.trim().isNotEmpty) {
+      displayName = user.displayName!.trim();
+    } else if (user.email != null && user.email!.isNotEmpty) {
+      final namePart = user.email!.split('@').first;
+      displayName = namePart.isNotEmpty
+          ? '${namePart[0].toUpperCase()}${namePart.substring(1)}'
+          : 'ML Engineer';
+    } else {
+      displayName = isGuest || user.isAnonymous ? 'Guest User' : 'ML Engineer';
+    }
+
     return AuthUser(
       uid: user.uid,
-      email: user.email ?? 'guest@aimodelhub.ai',
+      email: user.email ?? (isGuest || user.isAnonymous ? 'guest@broml.ai' : ''),
       displayName: displayName,
       photoUrl: user.photoURL,
-      isGuest: isGuest,
-    );
-  }
-
-  /// Offline/mock fallback user (no Firebase)
-  factory AuthUser.mock(String email) {
-    final namePart = email.split('@').first;
-    final displayName =
-        '${namePart[0].toUpperCase()}${namePart.substring(1)}';
-    return AuthUser(
-      uid: 'offline-uid',
-      email: email,
-      displayName: displayName,
+      isGuest: isGuest || user.isAnonymous,
     );
   }
 }
 
-// ─── Provider ─────────────────────────────────────────────────────────────────
+// ─── Provider ────────────────────────────────────────────────────────────────
 class AuthProvider with ChangeNotifier {
   AuthUser? _currentUser;
   bool _isLoading = false;
@@ -69,8 +63,7 @@ class AuthProvider with ChangeNotifier {
   bool isEmailValid(String email) => _emailRegExp.hasMatch(email.trim());
   bool isPasswordValid(String password) => password.trim().length >= 6;
 
-  bool get _firebaseAvailable =>
-      Firebase.apps.isNotEmpty;
+  bool get _firebaseAvailable => Firebase.apps.isNotEmpty;
 
   // ── Email / Password ───────────────────────────────────────────────────────
   Future<bool> login(String email, String password) async {
@@ -86,7 +79,6 @@ class AuthProvider with ChangeNotifier {
       return _fail('Password must be at least 6 characters.');
     }
 
-    // ── Live Firebase Auth path ──────────────────────────────────────────────
     if (_firebaseAvailable) {
       try {
         final credential = await fb.FirebaseAuth.instance
@@ -94,100 +86,134 @@ class AuthProvider with ChangeNotifier {
           email: trimmedEmail,
           password: trimmedPass,
         );
-        _currentUser = AuthUser.fromFirebaseUser(credential.user!);
-        await _persistSession(trimmedEmail);
-        return _succeed();
+        if (credential.user != null) {
+          _currentUser = AuthUser.fromFirebaseUser(credential.user!);
+          await _persistSession(trimmedEmail);
+          return _succeed();
+        } else {
+          return _fail('Sign in failed. No user record returned.');
+        }
       } on fb.FirebaseAuthException catch (e) {
         return _fail(_mapFirebaseError(e));
       } catch (e) {
-        // Firebase unreachable → fall through to mock
-        debugPrint('Firebase unreachable, using offline mode: $e');
+        debugPrint('Firebase login exception: $e');
+        return _fail('Sign in failed: ${e.toString()}');
       }
+    } else {
+      return _fail('Firebase is not initialized. Please check your internet connection.');
     }
-
-    // ── Offline / mock path ──────────────────────────────────────────────────
-    await Future.delayed(const Duration(milliseconds: 500));
-    _currentUser = AuthUser.mock(trimmedEmail);
-    await _persistSession(trimmedEmail);
-    return _succeed();
   }
 
   // ── Google Sign-In ─────────────────────────────────────────────────────────
   Future<bool> loginWithGoogle() async {
     _setLoading(true);
-    if (_firebaseAvailable) {
-      try {
-        if (kIsWeb) {
-          final googleProvider = fb.GoogleAuthProvider();
-          final userCredential =
-              await fb.FirebaseAuth.instance.signInWithPopup(googleProvider);
+
+    if (!_firebaseAvailable) {
+      return _fail('Firebase is not initialized. Please check your network connection.');
+    }
+
+    try {
+      if (kIsWeb) {
+        final googleProvider = fb.GoogleAuthProvider();
+        final userCredential =
+            await fb.FirebaseAuth.instance.signInWithPopup(googleProvider);
+        if (userCredential.user != null) {
           _currentUser = AuthUser.fromFirebaseUser(userCredential.user!);
           await _persistSession(_currentUser!.email);
           return _succeed();
         } else {
-          final googleUser = await GoogleSignIn().signIn();
-          if (googleUser != null) {
-            final googleAuth = await googleUser.authentication;
-            final credential = fb.GoogleAuthProvider.credential(
-              accessToken: googleAuth.accessToken,
-              idToken: googleAuth.idToken,
-            );
-            final userCredential =
-                await fb.FirebaseAuth.instance.signInWithCredential(credential);
-            _currentUser = AuthUser.fromFirebaseUser(userCredential.user!);
-            await _persistSession(_currentUser!.email);
-            return _succeed();
-          }
+          return _fail('Google sign-in did not return a user.');
         }
-      } on fb.FirebaseAuthException catch (e) {
-        debugPrint('Firebase Google login exception: ${e.code} ${e.message}');
-      } catch (e) {
-        debugPrint('Google Sign-In exception: $e');
-      }
-    }
+      } else {
+        final googleSignIn = GoogleSignIn(
+          serverClientId: '640800735490-vnk6dgbf23o80nlis3150cpp485omfsp.apps.googleusercontent.com',
+          scopes: ['email', 'profile'],
+        );
 
-    // Graceful offline / demo fallback
-    await Future.delayed(const Duration(milliseconds: 500));
-    _currentUser = const AuthUser(
-      uid: 'google-demo-uid',
-      email: 'alex.chen@google.com',
-      displayName: 'Alex Chen',
-      role: 'ML Research Engineer',
-    );
-    await _persistSession(_currentUser!.email);
-    return _succeed();
+        // Clear any previous sign in cache so account selector always appears
+        try {
+          await googleSignIn.signOut();
+        } catch (_) {}
+
+        final googleUser = await googleSignIn.signIn();
+        if (googleUser == null) {
+          // User closed or canceled Google sign-in dialog
+          _isLoading = false;
+          _errorMessage = null;
+          notifyListeners();
+          return false;
+        }
+
+        final googleAuth = await googleUser.authentication;
+        if (googleAuth.idToken == null && googleAuth.accessToken == null) {
+          return _fail('Failed to obtain Google authentication tokens.');
+        }
+
+        final credential = fb.GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        final userCredential =
+            await fb.FirebaseAuth.instance.signInWithCredential(credential);
+
+        if (userCredential.user != null) {
+          _currentUser = AuthUser.fromFirebaseUser(userCredential.user!);
+          await _persistSession(_currentUser!.email);
+          return _succeed();
+        } else {
+          return _fail('Google sign-in succeeded, but no user profile was returned.');
+        }
+      }
+    } on fb.FirebaseAuthException catch (e) {
+      debugPrint('Firebase Google login exception: ${e.code} ${e.message}');
+      return _fail(_mapFirebaseError(e));
+    } catch (e) {
+      debugPrint('Google Sign-In exception: $e');
+      final errorStr = e.toString();
+      if (errorStr.contains('10') || errorStr.contains('DEVELOPER_ERROR')) {
+        return _fail(
+          'Google Sign-In Error (Code 10): SHA-1 fingerprint is missing in Firebase Console. Add SHA-1 to project broml-app in Firebase settings.',
+        );
+      } else if (errorStr.contains('12500') || errorStr.contains('SIGN_IN_FAILED')) {
+        return _fail(
+          'Google Sign-In failed (Code 12500). Please ensure Google Sign-In is enabled in Firebase Console Authentication tab.',
+        );
+      } else if (errorStr.contains('network_error') || errorStr.contains('7')) {
+        return _fail('Network error during Google Sign-In. Check your internet connection.');
+      }
+      return _fail('Google Sign-In failed: $e');
+    }
   }
 
   // ── GitHub Sign-In ─────────────────────────────────────────────────────────
   Future<bool> loginWithGitHub() async {
     _setLoading(true);
-    if (_firebaseAvailable) {
-      try {
-        final githubProvider = fb.GithubAuthProvider();
-        final userCredential = await fb.FirebaseAuth.instance.signInWithProvider(githubProvider);
+    if (!_firebaseAvailable) {
+      return _fail('Firebase is not initialized.');
+    }
+
+    try {
+      final githubProvider = fb.GithubAuthProvider();
+      final userCredential =
+          await fb.FirebaseAuth.instance.signInWithProvider(githubProvider);
+      if (userCredential.user != null) {
         _currentUser = AuthUser.fromFirebaseUser(userCredential.user!);
         await _persistSession(_currentUser!.email);
         return _succeed();
-      } on fb.FirebaseAuthException catch (e) {
-        if (e.code == 'account-exists-with-different-credential') {
-          return _fail('An account already exists with this email address.');
-        }
-        debugPrint('Firebase GitHub login exception: ${e.message}');
-      } catch (e) {
-        debugPrint('Firebase GitHub sign in fallback: $e');
+      } else {
+        return _fail('GitHub sign-in did not return a user.');
       }
+    } on fb.FirebaseAuthException catch (e) {
+      if (e.code == 'account-exists-with-different-credential') {
+        return _fail('An account already exists with this email address.');
+      }
+      debugPrint('Firebase GitHub login exception: ${e.message}');
+      return _fail(_mapFirebaseError(e));
+    } catch (e) {
+      debugPrint('GitHub sign in error: $e');
+      return _fail('GitHub sign in failed: $e');
     }
-
-    // Offline / Demo fallback
-    await Future.delayed(const Duration(milliseconds: 500));
-    _currentUser = const AuthUser(
-      uid: 'github-demo-uid',
-      email: 'octocat@github.com',
-      displayName: 'GitHub Developer',
-      role: 'Open-Source Contributor',
-    );
-    await _persistSession(_currentUser!.email);
-    return _succeed();
   }
 
   // ── Anonymous / Guest ──────────────────────────────────────────────────────
@@ -197,18 +223,20 @@ class AuthProvider with ChangeNotifier {
       try {
         final credential =
             await fb.FirebaseAuth.instance.signInAnonymously();
-        _currentUser =
-            AuthUser.fromFirebaseUser(credential.user!, isGuest: true);
-        return _succeed();
-      } catch (_) {
-        debugPrint('Anonymous auth failed, using mock guest.');
+        if (credential.user != null) {
+          _currentUser =
+              AuthUser.fromFirebaseUser(credential.user!, isGuest: true);
+          return _succeed();
+        }
+      } catch (e) {
+        debugPrint('Anonymous auth failed: $e');
       }
     }
-    await Future.delayed(const Duration(milliseconds: 300));
+    // Guest fallback only for quick demo mode
     _currentUser = const AuthUser(
-      uid: 'guest-uid',
-      email: 'guest@aimodelhub.ai',
-      displayName: 'Guest User',
+      uid: 'guest-session-uid',
+      email: 'guest@broml.ai',
+      displayName: 'Guest Explorer',
       role: 'Visitor',
       isGuest: true,
     );
@@ -223,34 +251,32 @@ class AuthProvider with ChangeNotifier {
     if (!isPasswordValid(password)) return _fail('Password must be at least 6 characters.');
     if (name.trim().isEmpty) return _fail('Please enter your name.');
 
-    if (_firebaseAvailable) {
-      try {
-        final credential = await fb.FirebaseAuth.instance
-            .createUserWithEmailAndPassword(
-          email: email.trim(),
-          password: password,
-        );
-        await credential.user!.updateDisplayName(name.trim());
-        await credential.user!.reload();
-        _currentUser = AuthUser.fromFirebaseUser(
-          fb.FirebaseAuth.instance.currentUser!,
-        );
-        await _persistSession(email.trim());
-        return _succeed();
-      } on fb.FirebaseAuthException catch (e) {
-        return _fail(_mapFirebaseError(e));
-      }
+    if (!_firebaseAvailable) {
+      return _fail('Firebase is not initialized. Please check network connection.');
     }
 
-    // Offline mock registration
-    await Future.delayed(const Duration(milliseconds: 400));
-    _currentUser = AuthUser(
-      uid: 'offline-new-uid',
-      email: email.trim(),
-      displayName: name.trim(),
-    );
-    await _persistSession(email.trim());
-    return _succeed();
+    try {
+      final credential = await fb.FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+      if (credential.user != null) {
+        await credential.user!.updateDisplayName(name.trim());
+        await credential.user!.reload();
+        final updatedUser =
+            fb.FirebaseAuth.instance.currentUser ?? credential.user!;
+        _currentUser = AuthUser.fromFirebaseUser(updatedUser);
+        await _persistSession(email.trim());
+        return _succeed();
+      } else {
+        return _fail('Registration failed. Please try again.');
+      }
+    } on fb.FirebaseAuthException catch (e) {
+      return _fail(_mapFirebaseError(e));
+    } catch (e) {
+      return _fail('Registration error: $e');
+    }
   }
 
   // ── Logout ─────────────────────────────────────────────────────────────────
@@ -258,6 +284,8 @@ class AuthProvider with ChangeNotifier {
     if (_firebaseAvailable) {
       try {
         await GoogleSignIn().signOut();
+      } catch (_) {}
+      try {
         await fb.FirebaseAuth.instance.signOut();
       } catch (_) {}
     }
@@ -270,24 +298,21 @@ class AuthProvider with ChangeNotifier {
 
   // ── Session restore ────────────────────────────────────────────────────────
   Future<void> restoreSession() async {
-    // Try Firebase auto-restore first
     if (_firebaseAvailable) {
       final user = fb.FirebaseAuth.instance.currentUser;
       if (user != null) {
         _currentUser = AuthUser.fromFirebaseUser(user);
         notifyListeners();
         return;
+      } else {
+        // No active Firebase user; ensure no stale mock session persists
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('session_email');
+        _currentUser = null;
+        notifyListeners();
+        return;
       }
     }
-    // Fallback: shared_preferences mock session
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final email = prefs.getString('session_email');
-      if (email != null && email.isNotEmpty) {
-        _currentUser = AuthUser.mock(email);
-        notifyListeners();
-      }
-    } catch (_) {}
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -329,13 +354,16 @@ class AuthProvider with ChangeNotifier {
       case 'email-already-in-use':
         return 'An account already exists with this email.';
       case 'weak-password':
-        return 'Password is too weak. Use at least 8 characters.';
+        return 'Password is too weak. Use at least 6 characters.';
       case 'too-many-requests':
         return 'Too many attempts. Please try again later.';
       case 'network-request-failed':
-        return 'Network error. Switching to offline mode.';
+        return 'Network error. Please check your internet connection.';
+      case 'popup-closed-by-user':
+        return 'Sign in cancelled.';
       default:
-        return e.message ?? 'Authentication failed. Please try again.';
+        return e.message ?? 'Authentication failed (${e.code}). Please try again.';
     }
   }
 }
+

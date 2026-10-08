@@ -1,4 +1,4 @@
-{
+﻿{
   "project_info": {
     "project_number": "640800735490",
     "project_id": "broml-app",
@@ -12,7 +12,20 @@
           "package_name": "com.example.aimodelhub.ai_model_hub"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "640800735490-59mh4fnj2jspn69utum9jn26pbr5jkhp.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.aimodelhub.ai_model_hub",
+            "certificate_hash": "2d2ca3075fdc07b4595718e3fcd57d2f99443aea"
+          }
+        },
+        {
+          "client_id": "640800735490-vnk6dgbf23o80nlis3150cpp485omfsp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBgfZlPIRHuEy1E9YB66zGZNhG22I8Xcbg"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "640800735490-vnk6dgbf23o80nlis3150cpp485omfsp.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
