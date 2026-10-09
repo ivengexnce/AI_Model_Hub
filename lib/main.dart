@@ -1,4 +1,4 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -97,8 +97,10 @@ class _AppEntryState extends State<_AppEntry> {
   }
 
   Future<void> _check() async {
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-    await auth.restoreSession();
+    try {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      await auth.restoreSession().timeout(const Duration(milliseconds: 600));
+    } catch (_) {}
     if (mounted) setState(() => _checked = true);
   }
 

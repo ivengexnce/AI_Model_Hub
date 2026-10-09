@@ -47,11 +47,6 @@ class _LoginScreenState extends State<LoginScreen>
 
     _fadeCtrl.forward();
     _slideCtrl.forward();
-
-    // Restore persisted session; root route reacts to AuthProvider state.
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await context.read<AuthProvider>().restoreSession();
-    });
   }
 
   @override
