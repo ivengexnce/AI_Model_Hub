@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/ml_model.dart';
 import '../services/api_service.dart';
 import '../services/firebase_storage_service.dart';
@@ -11,12 +13,14 @@ class ModelProvider with ChangeNotifier {
   final FirestoreService _firestoreService = FirestoreService();
 
   List<MlModel> _models = [];
+  List<MlModel> _savedModels = [];
   bool _isLoading = false;
   String _searchQuery = '';
   String _selectedCategory = 'All';
   String? _errorMessage;
 
   List<MlModel> get models => _filteredModels();
+  List<MlModel> get savedModels => _savedModels;
   bool get isLoading => _isLoading;
   String get searchQuery => _searchQuery;
   String get selectedCategory => _selectedCategory;
@@ -24,6 +28,7 @@ class ModelProvider with ChangeNotifier {
 
   List<String> get categories => [
     'All',
+    'Saved',
     'Computer Vision',
     'Natural Language Processing',
     'Audio & Speech',
@@ -33,15 +38,71 @@ class ModelProvider with ChangeNotifier {
 
   ModelProvider() {
     loadModels();
+    _loadSavedModels();
+  }
+
+  Future<void> _loadSavedModels() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getStringList('saved_local_models');
+      if (raw != null) {
+        _savedModels = raw.map((item) => MlModel.fromJson(jsonDecode(item))).toList();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error loading saved models: $e');
+    }
+  }
+
+  Future<void> _persistSavedModels() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = _savedModels.map((m) => jsonEncode(m.toJson())).toList();
+      await prefs.setStringList('saved_local_models', list);
+    } catch (e) {
+      debugPrint('Error persisting saved models: $e');
+    }
+  }
+
+  bool isModelSaved(MlModel model) {
+    return _savedModels.any((m) =>
+      (m.id.isNotEmpty && m.id == model.id) ||
+      (m.githubUrl.isNotEmpty && m.githubUrl == model.githubUrl) ||
+      m.name == model.name
+    );
+  }
+
+  Future<bool> toggleSaveModel(MlModel model) async {
+    final index = _savedModels.indexWhere((m) =>
+      (m.id.isNotEmpty && m.id == model.id) ||
+      (m.githubUrl.isNotEmpty && m.githubUrl == model.githubUrl) ||
+      m.name == model.name
+    );
+
+    final bool added;
+    if (index >= 0) {
+      _savedModels.removeAt(index);
+      added = false;
+    } else {
+      _savedModels.insert(0, model);
+      added = true;
+    }
+    await _persistSavedModels();
+    notifyListeners();
+    return added;
   }
 
   List<MlModel> _filteredModels() {
-    return _models.where((model) {
+    final baseList = _selectedCategory == 'Saved' ? _savedModels : _models;
+
+    return baseList.where((model) {
       final matchesQuery = model.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           model.description.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           model.framework.toLowerCase().contains(_searchQuery.toLowerCase());
 
-      final matchesCategory = _selectedCategory == 'All' || model.category == _selectedCategory;
+      final matchesCategory = _selectedCategory == 'All' ||
+          _selectedCategory == 'Saved' ||
+          model.category == _selectedCategory;
 
       return matchesQuery && matchesCategory;
     }).toList();
@@ -89,6 +150,8 @@ class ModelProvider with ChangeNotifier {
     required String description,
     required String datasetName,
     String githubUrl = '',
+    String creatorId = '',
+    String creatorEmail = '',
     XFile? imageFile,
   }) async {
     _isLoading = true;
@@ -116,6 +179,8 @@ class ModelProvider with ChangeNotifier {
         datasetName: datasetName,
         imageUrl: imageUrl,
         githubUrl: githubUrl,
+        creatorId: creatorId,
+        creatorEmail: creatorEmail,
       );
 
       // Save to Cloud Firestore if connected

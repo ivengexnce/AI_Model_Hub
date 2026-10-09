@@ -268,6 +268,7 @@ class _AccountMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = context.select<AuthProvider, AuthUser?>((a) => a.currentUser);
+    final savedCount = context.select<ModelProvider, int>((p) => p.savedModels.length);
     final c = Theme.of(context).colorScheme;
     final t = Theme.of(context).textTheme;
     final name = user?.displayName ?? '';
@@ -277,7 +278,9 @@ class _AccountMenu extends StatelessWidget {
       tooltip: 'Account',
       offset: const Offset(0, 44),
       onSelected: (v) async {
-        if (v == 'signout') {
+        if (v == 'saved') {
+          context.read<ModelProvider>().setSelectedCategory('Saved');
+        } else if (v == 'signout') {
           await context.read<AuthProvider>().logout();
           if (context.mounted) {
             Navigator.of(context).pushAndRemoveUntil(
@@ -296,11 +299,36 @@ class _AccountMenu extends StatelessWidget {
             children: [
               Text(name.isEmpty ? 'Account' : name, style: t.titleSmall),
               if (user != null) Text(user.email, style: t.bodySmall),
+              if (user != null && user.role.isNotEmpty)
+                Text(
+                  user.role,
+                  style: t.labelSmall?.copyWith(color: c.primary),
+                ),
             ],
           ),
         ),
         const PopupMenuDivider(),
-        const PopupMenuItem<String>(value: 'signout', child: Text('Sign out')),
+        PopupMenuItem<String>(
+          value: 'saved',
+          child: Row(
+            children: [
+              const Icon(Icons.bookmark_outline_rounded, size: 18),
+              const SizedBox(width: 8),
+              Text('Saved Models ($savedCount)'),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        const PopupMenuItem<String>(
+          value: 'signout',
+          child: Row(
+            children: [
+              Icon(Icons.logout_rounded, size: 18, color: Colors.redAccent),
+              SizedBox(width: 8),
+              Text('Sign out', style: TextStyle(color: Colors.redAccent)),
+            ],
+          ),
+        ),
       ],
       child: CircleAvatar(
         radius: 16,

@@ -99,7 +99,7 @@ class _AppEntryState extends State<_AppEntry> {
   Future<void> _check() async {
     try {
       final auth = Provider.of<AuthProvider>(context, listen: false);
-      await auth.restoreSession().timeout(const Duration(milliseconds: 600));
+      await auth.restoreSession().timeout(const Duration(milliseconds: 2000));
     } catch (_) {}
     if (mounted) setState(() => _checked = true);
   }

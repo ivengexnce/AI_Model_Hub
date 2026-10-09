@@ -10,6 +10,8 @@ class MlModel {
   final String datasetName;
   final String imageUrl;
   final String githubUrl;
+  final String creatorId;
+  final String creatorEmail;
 
   MlModel({
     required this.id,
@@ -23,6 +25,8 @@ class MlModel {
     required this.datasetName,
     required this.imageUrl,
     this.githubUrl = '',
+    this.creatorId = '',
+    this.creatorEmail = '',
   });
 
   factory MlModel.fromJson(Map<String, dynamic> json) {
@@ -38,6 +42,8 @@ class MlModel {
       datasetName: json['datasetName'] ?? 'Custom Dataset',
       imageUrl: json['imageUrl'] ?? json['thumbnail'] ?? 'https://picsum.photos/400/300',
       githubUrl: json['githubUrl'] ?? json['repoUrl'] ?? '',
+      creatorId: json['creatorId']?.toString() ?? json['userId']?.toString() ?? '',
+      creatorEmail: json['creatorEmail']?.toString() ?? '',
     );
   }
 
@@ -54,6 +60,8 @@ class MlModel {
       'datasetName': datasetName,
       'imageUrl': imageUrl,
       'githubUrl': githubUrl,
+      'creatorId': creatorId,
+      'creatorEmail': creatorEmail,
     };
   }
 
@@ -69,6 +77,8 @@ class MlModel {
     String? datasetName,
     String? imageUrl,
     String? githubUrl,
+    String? creatorId,
+    String? creatorEmail,
   }) {
     return MlModel(
       id: id ?? this.id,
@@ -82,6 +92,8 @@ class MlModel {
       datasetName: datasetName ?? this.datasetName,
       imageUrl: imageUrl ?? this.imageUrl,
       githubUrl: githubUrl ?? this.githubUrl,
+      creatorId: creatorId ?? this.creatorId,
+      creatorEmail: creatorEmail ?? this.creatorEmail,
     );
   }
 }

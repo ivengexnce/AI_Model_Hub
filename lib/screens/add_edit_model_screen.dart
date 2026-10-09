@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../models/ml_model.dart';
+import '../providers/auth_provider.dart';
 import '../providers/model_provider.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/model_image.dart';
@@ -84,6 +85,8 @@ class _AddEditModelScreenState extends State<AddEditModelScreen> {
     final provider = context.read<ModelProvider>();
     final bool success;
 
+    final authUser = context.read<AuthProvider>().currentUser;
+
     if (!_isEditing) {
       success = await provider.createModel(
         name: _name,
@@ -95,6 +98,8 @@ class _AddEditModelScreenState extends State<AddEditModelScreen> {
         description: _description,
         datasetName: _datasetName,
         githubUrl: _githubUrl,
+        creatorId: authUser?.uid ?? '',
+        creatorEmail: authUser?.email ?? '',
         imageFile: _selectedImageFile,
       );
     } else {

@@ -78,6 +78,26 @@ class AuthProvider with ChangeNotifier {
 
   bool get _firebaseAvailable => Firebase.apps.isNotEmpty;
 
+  AuthProvider() {
+    _initAuthListener();
+  }
+
+  void _initAuthListener() {
+    if (_firebaseAvailable) {
+      try {
+        fb.FirebaseAuth.instance.authStateChanges().listen((fbUser) {
+          if (fbUser != null) {
+            _currentUser = AuthUser.fromFirebaseUser(fbUser);
+            _persistUserSession(_currentUser!);
+            notifyListeners();
+          }
+        });
+      } catch (e) {
+        debugPrint('authStateChanges listener error: $e');
+      }
+    }
+  }
+
   // -- Email / Password -------------------------------------------------------
   Future<bool> login(String email, String password) async {
     _setLoading(true);
@@ -101,7 +121,7 @@ class AuthProvider with ChangeNotifier {
         );
         if (credential.user != null) {
           _currentUser = AuthUser.fromFirebaseUser(credential.user!);
-          await _persistSession(trimmedEmail);
+          await _persistUserSession(_currentUser!);
           return _succeed();
         }
       } on fb.FirebaseAuthException catch (e) {
@@ -114,7 +134,7 @@ class AuthProvider with ChangeNotifier {
             );
             if (regCred.user != null) {
               _currentUser = AuthUser.fromFirebaseUser(regCred.user!);
-              await _persistSession(trimmedEmail);
+              await _persistUserSession(_currentUser!);
               return _succeed();
             }
           } catch (_) {}
@@ -128,7 +148,7 @@ class AuthProvider with ChangeNotifier {
     // Offline / Demo fallback so user is never locked out
     await Future.delayed(const Duration(milliseconds: 300));
     _currentUser = AuthUser.mock(trimmedEmail);
-    await _persistSession(trimmedEmail);
+    await _persistUserSession(_currentUser!);
     return _succeed();
   }
 
@@ -147,7 +167,7 @@ class AuthProvider with ChangeNotifier {
             await fb.FirebaseAuth.instance.signInWithPopup(googleProvider);
         if (userCredential.user != null) {
           _currentUser = AuthUser.fromFirebaseUser(userCredential.user!);
-          await _persistSession(_currentUser!.email);
+          await _persistUserSession(_currentUser!);
           return _succeed();
         } else {
           return _fail('Google sign-in did not return a user.');
@@ -187,7 +207,7 @@ class AuthProvider with ChangeNotifier {
 
         if (userCredential.user != null) {
           _currentUser = AuthUser.fromFirebaseUser(userCredential.user!);
-          await _persistSession(_currentUser!.email);
+          await _persistUserSession(_currentUser!);
           return _succeed();
         } else {
           return _fail('Google sign-in succeeded, but no user profile was returned.');
@@ -207,7 +227,7 @@ class AuthProvider with ChangeNotifier {
       displayName: 'Alex Chen',
       role: 'ML Research Engineer',
     );
-    await _persistSession(_currentUser!.email);
+    await _persistUserSession(_currentUser!);
     return _succeed();
   }
 
@@ -224,7 +244,7 @@ class AuthProvider with ChangeNotifier {
           await fb.FirebaseAuth.instance.signInWithProvider(githubProvider);
       if (userCredential.user != null) {
         _currentUser = AuthUser.fromFirebaseUser(userCredential.user!);
-        await _persistSession(_currentUser!.email);
+        await _persistUserSession(_currentUser!);
         return _succeed();
       } else {
         return _fail('GitHub sign-in did not return a user.');
@@ -251,6 +271,7 @@ class AuthProvider with ChangeNotifier {
         if (credential.user != null) {
           _currentUser =
               AuthUser.fromFirebaseUser(credential.user!, isGuest: true);
+          await _persistUserSession(_currentUser!);
           return _succeed();
         }
       } catch (e) {
@@ -265,6 +286,7 @@ class AuthProvider with ChangeNotifier {
       role: 'Visitor',
       isGuest: true,
     );
+    await _persistUserSession(_currentUser!);
     return _succeed();
   }
 
@@ -292,7 +314,7 @@ class AuthProvider with ChangeNotifier {
         final updatedUser =
             fb.FirebaseAuth.instance.currentUser ?? credential.user!;
         _currentUser = AuthUser.fromFirebaseUser(updatedUser);
-        await _persistSession(email.trim());
+        await _persistUserSession(_currentUser!);
         return _succeed();
       } else {
         return _fail('Registration failed. Please try again.');
@@ -304,7 +326,7 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // -- Logout -----------------------------------------------------------------
+  // -- Logout (Only explicit user sign out clears the session) ----------------
   Future<void> logout() async {
     if (_firebaseAvailable) {
       try {
@@ -316,27 +338,58 @@ class AuthProvider with ChangeNotifier {
     }
     _currentUser = null;
     _errorMessage = null;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('session_email');
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('session_is_logged_in', false);
+      await prefs.remove('session_uid');
+      await prefs.remove('session_email');
+      await prefs.remove('session_name');
+      await prefs.remove('session_role');
+      await prefs.remove('session_photo');
+      await prefs.remove('session_is_guest');
+    } catch (_) {}
+
     notifyListeners();
   }
 
-  // -- Session restore --------------------------------------------------------
+  // -- Session restore (Keeps user signed in forever until explicit logout) ---
   Future<void> restoreSession() async {
     try {
+      // 1. Immediately inspect local SharedPreferences (instant on Web & Mobile)
+      final prefs = await SharedPreferences.getInstance();
+      final isLoggedIn = prefs.getBool('session_is_logged_in') ?? false;
+      final savedEmail = prefs.getString('session_email');
+
+      if (isLoggedIn || (savedEmail != null && savedEmail.isNotEmpty)) {
+        final uid = prefs.getString('session_uid') ?? 'restored-${savedEmail.hashCode}';
+        final email = savedEmail ?? 'user@broml.ai';
+        final name = prefs.getString('session_name') ??
+            (email.contains('@') ? email.split('@').first : 'ML Engineer');
+        final role = prefs.getString('session_role') ?? 'ML Engineer';
+        final photo = prefs.getString('session_photo');
+        final isGuest = prefs.getBool('session_is_guest') ?? false;
+
+        _currentUser = AuthUser(
+          uid: uid,
+          email: email,
+          displayName: name,
+          role: role,
+          photoUrl: (photo != null && photo.isNotEmpty) ? photo : null,
+          isGuest: isGuest,
+        );
+        notifyListeners();
+      }
+
+      // 2. If Firebase has an active session, sync up
       if (_firebaseAvailable) {
         final user = fb.FirebaseAuth.instance.currentUser;
         if (user != null) {
           _currentUser = AuthUser.fromFirebaseUser(user);
+          await _persistUserSession(_currentUser!);
           notifyListeners();
           return;
         }
-      }
-      final prefs = await SharedPreferences.getInstance();
-      final savedEmail = prefs.getString('session_email');
-      if (savedEmail != null && savedEmail.isNotEmpty && _currentUser == null) {
-        _currentUser = AuthUser.mock(savedEmail);
-        notifyListeners();
       }
     } catch (e) {
       debugPrint('restoreSession error: $e');
@@ -364,11 +417,23 @@ class AuthProvider with ChangeNotifier {
     return false;
   }
 
-  Future<void> _persistSession(String email) async {
+  Future<void> _persistUserSession(AuthUser user) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('session_email', email);
-    } catch (_) {}
+      await prefs.setBool('session_is_logged_in', true);
+      await prefs.setString('session_uid', user.uid);
+      await prefs.setString('session_email', user.email);
+      await prefs.setString('session_name', user.displayName);
+      await prefs.setString('session_role', user.role);
+      if (user.photoUrl != null) {
+        await prefs.setString('session_photo', user.photoUrl!);
+      } else {
+        await prefs.remove('session_photo');
+      }
+      await prefs.setBool('session_is_guest', user.isGuest);
+    } catch (e) {
+      debugPrint('Error persisting user session: $e');
+    }
   }
 
   String _mapFirebaseError(fb.FirebaseAuthException e) {
