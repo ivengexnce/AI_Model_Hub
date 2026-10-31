@@ -1,0 +1,141 @@
+rules_version = '2';
+
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: models
+// Document ID: {modelId} (auto-generated UID or slug string)
+// Fields:
+//   - name: string (required, 1-100 chars) - Name/title of the machine learning model
+//   - category: string (required, 1-50 chars) - Model task domain (e.g., 'Computer Vision')
+//   - framework: string (required, 1-50 chars) - Core ML library (e.g., 'PyTorch', 'TensorFlow')
+//   - accuracy: number (required, 0.0 - 100.0) - Benchmark evaluation accuracy
+//   - latencyMs: number (required, > 0 and <= 600000) - Inference latency in milliseconds
+//   - version: string (required, 1-30 chars) - Semantic or release version string
+//   - description: string (required, 1-5000 chars) - Comprehensive overview of the model
+//   - datasetName: string (required, 1-150 chars) - Dataset used for training / benchmarking
+//   - imageUrl: string (required, 1-1000 chars, HTTP/HTTPS URL) - Preview or diagram image URL
+//   - githubUrl: string (optional, 0-500 chars, HTTP/HTTPS URL if non-empty) - Repository URL
+//   - creatorId: string (required, 1-128 chars, immutable) - Firebase Auth UID of the creator
+//   - creatorEmail: string (optional, 0-254 chars, valid email format if non-empty) - Creator email
+//   - createdAt: timestamp (optional, immutable) - Server creation timestamp
+//   - updatedAt: timestamp (optional) - Server last update timestamp
+//
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    /// Checks if the requesting client is authenticated with Firebase Auth
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    /// Checks if the authenticated user has an admin custom claim
+    function isAdmin() {
+      return isAuthenticated() &&
+             ('admin' in request.auth.token && request.auth.token.admin == true);
+    }
+
+    /// Checks if the user is the original creator of the model or an administrator
+    function canModifyModel() {
+      return isAuthenticated() &&
+             (request.auth.uid == resource.data.creatorId || isAdmin());
+    }
+
+    /// Validates an HTTP or HTTPS URL with strict length bounds
+    function isValidUrl(url) {
+      return url is string &&
+             url.size() >= 1 &&
+             url.size() <= 1000 &&
+             (url.matches('^https://.*') || url.matches('^http://.*'));
+    }
+
+    /// Validates an optional URL (allowed to be empty string or valid HTTP/HTTPS URL)
+    function isValidOptionalUrl(url) {
+      return url is string &&
+             url.size() <= 500 &&
+             (url.size() == 0 || url.matches('^https://.*') || url.matches('^http://.*'));
+    }
+
+    /// Validates an optional email address (allowed to be empty string or valid RFC email format)
+    function isValidOptionalEmail(email) {
+      return email is string &&
+             email.size() <= 254 &&
+             (email.size() == 0 || email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$'));
+    }
+
+    /// Ensures immutable fields (creatorId and createdAt) cannot be modified or tampered with on update
+    function areModelImmutableFieldsUnchanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['creatorId', 'createdAt']) &&
+             request.resource.data.creatorId == resource.data.creatorId &&
+             (!('createdAt' in resource.data) ||
+              ('createdAt' in request.resource.data && request.resource.data.createdAt == resource.data.createdAt));
+    }
+
+    // ===============================================================
+    // Domain Validator (Used across BOTH create and update)
+    // ===============================================================
+
+    function isValidModel(data) {
+      return data.keys().hasAll([
+               'name', 'category', 'framework', 'accuracy', 'latencyMs',
+               'version', 'description', 'datasetName', 'imageUrl', 'creatorId'
+             ]) &&
+             data.keys().hasOnly([
+               'name', 'category', 'framework', 'accuracy', 'latencyMs',
+               'version', 'description', 'datasetName', 'imageUrl',
+               'githubUrl', 'creatorId', 'creatorEmail', 'createdAt', 'updatedAt'
+             ]) &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+             data.category is string && data.category.size() >= 1 && data.category.size() <= 50 &&
+             data.framework is string && data.framework.size() >= 1 && data.framework.size() <= 50 &&
+             data.accuracy is number && data.accuracy >= 0 && data.accuracy <= 100 &&
+             data.latencyMs is number && data.latencyMs > 0 && data.latencyMs <= 600000 &&
+             data.version is string && data.version.size() >= 1 && data.version.size() <= 30 &&
+             data.description is string && data.description.size() >= 1 && data.description.size() <= 5000 &&
+             data.datasetName is string && data.datasetName.size() >= 1 && data.datasetName.size() <= 150 &&
+             isValidUrl(data.imageUrl) &&
+             data.creatorId is string && data.creatorId.size() >= 1 && data.creatorId.size() <= 128 &&
+             (!('githubUrl' in data) || isValidOptionalUrl(data.githubUrl)) &&
+             (!('creatorEmail' in data) || isValidOptionalEmail(data.creatorEmail)) &&
+             (!('createdAt' in data) || data.createdAt is timestamp) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    // ===============================================================
+    // Collection Rules: models
+    // ===============================================================
+
+    match /models/{modelId} {
+      // 1. Read: Public read access for model exploration & discovery
+      allow read: if true;
+
+      // 2. Create: Authenticated users only; must bind creatorId to auth.uid and pass validation
+      allow create: if isAuthenticated() &&
+                       request.resource.data.creatorId == request.auth.uid &&
+                       isValidModel(request.resource.data);
+
+      // 3. Update: Only model creator or admin; cannot alter creatorId or createdAt; must pass validation
+      allow update: if canModifyModel() &&
+                       areModelImmutableFieldsUnchanged() &&
+                       isValidModel(request.resource.data);
+
+      // 4. Delete: Only model creator or admin
+      allow delete: if canModifyModel();
+    }
+
+    // ===============================================================
+    // Default Deny: Deny all reads and writes to any unspecified collection
+    // ===============================================================
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

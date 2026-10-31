@@ -19,6 +19,7 @@ class _GithubBrowserScreenState extends State<GithubBrowserScreen> {
 
   List<GithubRepo> _repos = [];
   bool _isLoading = true;
+  bool _isSyncingAll = false;
   String _selectedCategory = 'All';
   final Set<String> _importedRepoIds = {};
 
@@ -28,6 +29,20 @@ class _GithubBrowserScreenState extends State<GithubBrowserScreen> {
     'Natural Language Processing',
     'Audio & Speech',
     'Reinforcement Learning',
+    'Tabular ML',
+  ];
+
+  final List<String> _quickTags = [
+    'DeepSeek',
+    'LLaMA',
+    'YOLO',
+    'Whisper',
+    'FLUX',
+    'SAM',
+    'XGBoost',
+    'Mistral',
+    'Kokoro',
+    'RL',
   ];
 
   @override
@@ -56,6 +71,50 @@ class _GithubBrowserScreenState extends State<GithubBrowserScreen> {
     }
   }
 
+  Future<void> _syncAllToHub() async {
+    if (_repos.isEmpty || _isSyncingAll) return;
+
+    final modelProvider = Provider.of<ModelProvider>(context, listen: false);
+    final authUser = Provider.of<AuthProvider>(context, listen: false).currentUser;
+
+    setState(() => _isSyncingAll = true);
+
+    final count = await modelProvider.importGithubRepos(
+      _repos,
+      creatorId: authUser?.uid ?? 'github-curator',
+      creatorEmail: authUser?.email ?? 'open-source@broml.ai',
+    );
+
+    if (mounted) {
+      setState(() {
+        _isSyncingAll = false;
+        _importedRepoIds.addAll(_repos.map((r) => r.id));
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFF1E3A8A),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.cyanAccent, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  count > 0
+                      ? 'Synced $count new GitHub models into your Model Hub!'
+                      : 'All ${_repos.length} models are already synced in your Hub.',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+  }
+
   Future<void> _importRepo(GithubRepo repo) async {
     final modelProvider = Provider.of<ModelProvider>(context, listen: false);
     final authUser = Provider.of<AuthProvider>(context, listen: false).currentUser;
@@ -75,8 +134,8 @@ class _GithubBrowserScreenState extends State<GithubBrowserScreen> {
       description: mlModel.description,
       datasetName: mlModel.datasetName,
       githubUrl: mlModel.githubUrl,
-      creatorId: authUser?.uid ?? '',
-      creatorEmail: authUser?.email ?? '',
+      creatorId: authUser?.uid ?? 'github-curator',
+      creatorEmail: authUser?.email ?? 'open-source@broml.ai',
     );
 
     if (mounted) {
@@ -155,6 +214,12 @@ class _GithubBrowserScreenState extends State<GithubBrowserScreen> {
     }
   }
 
+  String _formatStars(int count) {
+    if (count >= 1000000) return '${(count / 1000000).toStringAsFixed(1)}M';
+    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}k';
+    return count.toString();
+  }
+
   @override
   Widget build(BuildContext context) {
     final modelProvider = context.watch<ModelProvider>();
@@ -178,6 +243,20 @@ class _GithubBrowserScreenState extends State<GithubBrowserScreen> {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Sync All Models to Hub',
+            icon: _isSyncingAll
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.cyanAccent),
+                  )
+                : const Icon(Icons.sync_rounded, color: Colors.cyanAccent),
+            onPressed: _isSyncingAll ? null : _syncAllToHub,
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Center(
         child: ConstrainedBox(
@@ -194,6 +273,7 @@ class _GithubBrowserScreenState extends State<GithubBrowserScreen> {
                   ),
                 ),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Search bar
                     TextField(
@@ -201,7 +281,7 @@ class _GithubBrowserScreenState extends State<GithubBrowserScreen> {
                       style: const TextStyle(color: Colors.white, fontSize: 14),
                       onSubmitted: (_) => _loadRepos(),
                       decoration: InputDecoration(
-                        hintText: 'Search GitHub ML models (e.g., yolo, llama, whisper, bert)...',
+                        hintText: 'Search GitHub ML models (e.g. DeepSeek, YOLO, Whisper, FLUX, XGBoost)...',
                         hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
                         prefixIcon: const Icon(Icons.search, color: Colors.cyanAccent, size: 20),
                         suffixIcon: _searchController.text.isNotEmpty
@@ -226,7 +306,33 @@ class _GithubBrowserScreenState extends State<GithubBrowserScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 10),
+
+                    // Quick Search Tags
+                    SizedBox(
+                      height: 28,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _quickTags.length,
+                        separatorBuilder: (_, _) => const SizedBox(width: 6),
+                        itemBuilder: (context, index) {
+                          final tag = _quickTags[index];
+                          return ActionChip(
+                            label: Text(tag),
+                            labelStyle: const TextStyle(fontSize: 10.5, color: Colors.cyanAccent),
+                            backgroundColor: const Color(0xFF1E293B),
+                            side: const BorderSide(color: Color(0xFF334155), width: 0.8),
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                            onPressed: () {
+                              _searchController.text = tag;
+                              _loadRepos();
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
                     // Category Chips
                     SizedBox(
                       height: 36,
@@ -256,12 +362,37 @@ class _GithubBrowserScreenState extends State<GithubBrowserScreen> {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(20),
                               side: BorderSide(
-                                color: isSelected ? Colors.cyanAccent : const BorderSide(color: Color(0xFF2E3254)).color,
+                                color: isSelected ? Colors.cyanAccent : const Color(0xFF2E3254),
                                 width: 1,
                               ),
                             ),
                           );
                         },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // ── Status banner & Batch Sync Row ─────────────────────────────────
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                color: const Color(0xFF0F172A),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline_rounded, size: 14, color: Colors.cyanAccent),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Showing ${_repos.length} Open-Source Models',
+                      style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                    ),
+                    const Spacer(),
+                    TextButton.icon(
+                      onPressed: _isSyncingAll ? null : _syncAllToHub,
+                      icon: const Icon(Icons.sync, size: 14, color: Colors.cyanAccent),
+                      label: Text(
+                        _isSyncingAll ? 'Syncing...' : 'Sync All to Hub',
+                        style: const TextStyle(color: Colors.cyanAccent, fontSize: 12, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
@@ -308,7 +439,10 @@ class _GithubBrowserScreenState extends State<GithubBrowserScreen> {
                               itemCount: _repos.length,
                               itemBuilder: (context, index) {
                                 final repo = _repos[index];
-                                final isImported = _importedRepoIds.contains(repo.id);
+                                final isImported = _importedRepoIds.contains(repo.id) ||
+                                    modelProvider.models.any((m) =>
+                                        m.githubUrl.toLowerCase() == repo.htmlUrl.toLowerCase() ||
+                                        m.name.toLowerCase() == repo.toMlModel().name.toLowerCase());
                                 final isSaved = modelProvider.isModelSaved(repo.toMlModel());
                                 return _buildRepoCard(repo, isImported, isSaved);
                               },
@@ -550,7 +684,7 @@ class _GithubBrowserScreenState extends State<GithubBrowserScreen> {
                     label: FittedBox(
                       fit: BoxFit.scaleDown,
                       child: Text(
-                        isImported ? 'Imported to Hub' : 'Import to Hub',
+                        isImported ? 'Integrated in Hub' : 'Import to Hub',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
@@ -568,41 +702,29 @@ class _GithubBrowserScreenState extends State<GithubBrowserScreen> {
     );
   }
 
-  Widget _buildSpecBadge(String label, String value, Color color) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(
-            label.toUpperCase(),
-            style: TextStyle(
-              color: Colors.grey[400],
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+  Widget _buildSpecBadge(String label, String value, Color accentColor) {
+    return Column(
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: TextStyle(
+            color: Colors.grey[400],
+            fontSize: 9.5,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.5,
           ),
-          const SizedBox(height: 3),
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          style: TextStyle(
+            color: accentColor,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
           ),
-        ],
-      ),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
     );
-  }
-
-  String _formatStars(int stars) {
-    if (stars >= 1000) {
-      return '${(stars / 1000).toStringAsFixed(1)}k';
-    }
-    return stars.toString();
   }
 }

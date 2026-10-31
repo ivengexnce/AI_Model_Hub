@@ -45,11 +45,7 @@ class _AddEditModelScreenState extends State<AddEditModelScreen> {
   void initState() {
     super.initState();
     final model = widget.modelToEdit;
-    _categories = context
-        .read<ModelProvider>()
-        .categories
-        .where((c) => c != 'All')
-        .toList();
+    _categories = context.read<ModelProvider>().domainCategories;
     _name = model?.name ?? '';
     _category = _categories.contains(model?.category)
         ? model!.category
@@ -83,9 +79,8 @@ class _AddEditModelScreenState extends State<AddEditModelScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final nav = Navigator.of(context);
     final provider = context.read<ModelProvider>();
-    final bool success;
-
     final authUser = context.read<AuthProvider>().currentUser;
+    final bool success;
 
     if (!_isEditing) {
       success = await provider.createModel(
@@ -115,6 +110,8 @@ class _AddEditModelScreenState extends State<AddEditModelScreen> {
         datasetName: _datasetName,
         githubUrl: _githubUrl,
         newImageFile: _selectedImageFile,
+        currentUserId: authUser?.uid,
+        currentUserEmail: authUser?.email,
       );
     }
 
@@ -126,9 +123,11 @@ class _AddEditModelScreenState extends State<AddEditModelScreen> {
       );
       nav.pop();
     } else {
+      final errorMsg = provider.errorMessage ?? 'Couldn’t save the model. Please try again.';
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Couldn’t save the model. Please try again.'),
+        SnackBar(
+          content: Text(errorMsg),
+          backgroundColor: Colors.redAccent,
         ),
       );
     }
@@ -222,9 +221,11 @@ class _AddEditModelScreenState extends State<AddEditModelScreen> {
                   labelText: 'Model name',
                   hintText: 'e.g. ResNet-101 classifier',
                 ),
-                validator: (v) => v == null || v.trim().length < 2
-                    ? 'Enter a model name'
-                    : null,
+                validator: (v) {
+                  if (v == null || v.trim().length < 2) return 'Enter a model name (at least 2 chars)';
+                  if (v.trim().length > 100) return 'Name cannot exceed 100 characters';
+                  return null;
+                },
                 onSaved: (v) => _name = v!.trim(),
               ),
               gap,
@@ -276,8 +277,11 @@ class _AddEditModelScreenState extends State<AddEditModelScreen> {
                         labelText: 'Version',
                         hintText: '1.0.0',
                       ),
-                      validator: (v) =>
-                          v == null || v.trim().isEmpty ? 'Required' : null,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return 'Required';
+                        if (v.trim().length > 20) return 'Max 20 chars';
+                        return null;
+                      },
                       onSaved: (v) => _version = v!.trim(),
                     ),
                   ),
@@ -319,9 +323,12 @@ class _AddEditModelScreenState extends State<AddEditModelScreen> {
                         labelText: 'Latency (ms)',
                         hintText: '12',
                       ),
-                      validator: (v) => int.tryParse((v ?? '').trim()) == null
-                          ? 'Enter a whole number'
-                          : null,
+                      validator: (v) {
+                        final parsed = int.tryParse((v ?? '').trim());
+                        if (parsed == null) return 'Enter a whole number';
+                        if (parsed < 1 || parsed > 60000) return 'Between 1 and 60,000 ms';
+                        return null;
+                      },
                       onSaved: (v) => _latencyMs = int.parse(v!.trim()),
                     ),
                   ),
@@ -335,8 +342,11 @@ class _AddEditModelScreenState extends State<AddEditModelScreen> {
                   labelText: 'Dataset',
                   hintText: 'e.g. COCO 2017',
                 ),
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Enter a dataset' : null,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Enter a dataset';
+                  if (v.trim().length > 100) return 'Max 100 chars';
+                  return null;
+                },
                 onSaved: (v) => _datasetName = v!.trim(),
               ),
               gap,
@@ -349,6 +359,14 @@ class _AddEditModelScreenState extends State<AddEditModelScreen> {
                   hintText: 'https://github.com/username/project',
                   prefixIcon: Icon(Icons.code_rounded),
                 ),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return null;
+                  final s = v.trim();
+                  if (!s.startsWith('https://')) return 'URL must begin with https://';
+                  if (s.contains('javascript:') || s.contains('data:')) return 'Invalid URL protocol';
+                  if (s.length > 255) return 'URL cannot exceed 255 characters';
+                  return null;
+                },
                 onSaved: (v) => _githubUrl = (v ?? '').trim(),
               ),
               const SizedBox(height: Space.xxl),
@@ -364,9 +382,11 @@ class _AddEditModelScreenState extends State<AddEditModelScreen> {
                   hintText: 'Architecture, training setup and intended use',
                   alignLabelWithHint: true,
                 ),
-                validator: (v) => v == null || v.trim().isEmpty
-                    ? 'Enter a description'
-                    : null,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Enter a description';
+                  if (v.trim().length > 2000) return 'Max 2000 chars';
+                  return null;
+                },
                 onSaved: (v) => _description = v!.trim(),
               ),
               const SizedBox(height: Space.xxl),

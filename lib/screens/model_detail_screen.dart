@@ -70,30 +70,7 @@ class ModelDetailScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              if (isOwner)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withAlpha(35),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.greenAccent.withAlpha(150)),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.verified_user_rounded, color: Colors.greenAccent, size: 14),
-                      SizedBox(width: 4),
-                      Text(
-                        'Your Model (Owner)',
-                        style: TextStyle(
-                          color: Colors.greenAccent,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              _buildOriginBadge(m, isOwner),
             ],
           ),
           const SizedBox(height: Space.sm),
@@ -152,7 +129,11 @@ class ModelDetailScreen extends StatelessWidget {
           ],
           if (m.githubUrl.isNotEmpty) ...[
             const Divider(),
-            _SpecRow(label: 'GitHub', value: m.githubUrl, mono: true),
+            _SpecRow(
+              label: m.githubUrl.contains('huggingface.co') ? 'Hugging Face' : 'GitHub',
+              value: m.githubUrl,
+              mono: true,
+            ),
           ],
           const SizedBox(height: Space.xxl),
           const SectionLabel('About'),
@@ -160,8 +141,8 @@ class ModelDetailScreen extends StatelessWidget {
           if (m.githubUrl.isNotEmpty) ...[
             const SizedBox(height: Space.lg),
             OutlinedButton.icon(
-              icon: const Icon(Icons.code_rounded),
-              label: const Text('Copy GitHub Repository Link'),
+              icon: Icon(m.githubUrl.contains('huggingface.co') ? Icons.link_rounded : Icons.code_rounded),
+              label: Text(m.githubUrl.contains('huggingface.co') ? 'Copy Hugging Face Link' : 'Copy GitHub Repository Link'),
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: m.githubUrl));
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -256,6 +237,7 @@ class ModelDetailScreen extends StatelessWidget {
     final messenger = ScaffoldMessenger.of(context);
     final nav = Navigator.of(context);
     final provider = context.read<ModelProvider>();
+    final authUser = context.read<AuthProvider>().currentUser;
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -281,13 +263,18 @@ class ModelDetailScreen extends StatelessWidget {
     );
     if (confirmed != true) return;
 
-    final ok = await provider.deleteModel(m.id);
+    final ok = await provider.deleteModel(
+      m.id,
+      currentUserId: authUser?.uid,
+      currentUserEmail: authUser?.email,
+    );
     if (ok) {
       nav.pop();
       messenger.showSnackBar(const SnackBar(content: Text('Model deleted')));
     } else {
+      final msg = provider.errorMessage ?? 'Couldn’t delete the model. Try again.';
       messenger.showSnackBar(
-        const SnackBar(content: Text('Couldn’t delete the model. Try again.')),
+        SnackBar(content: Text(msg), backgroundColor: Colors.redAccent),
       );
     }
   }
@@ -365,3 +352,26 @@ class _SpecRow extends StatelessWidget {
     );
   }
 }
+
+Widget _buildOriginBadge(MlModel m, bool isOwner) {
+  Widget chip(Color bg, Color border, Color fg, Widget icon, String label) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10), border: Border.all(color: border)),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [icon, const SizedBox(width: 4), Text(label, style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.bold))]),
+  );
+
+  if (isOwner) {
+    return chip(Colors.green.withAlpha(35), Colors.greenAccent.withAlpha(150), Colors.greenAccent, const Icon(Icons.verified_user_rounded, color: Colors.greenAccent, size: 13), 'Your Model (Owner)');
+  }
+  if (m.isHuggingFace) {
+    return chip(const Color(0xFF2A1B0A), const Color(0xFF78350F), const Color(0xFFFBBF24), const Text('🤗', style: TextStyle(fontSize: 10)), 'Hugging Face Hub');
+  }
+  if (m.isGitHub) {
+    return chip(const Color(0xFF0F172A), const Color(0xFF334155), Colors.cyanAccent, const Icon(Icons.terminal_rounded, size: 13, color: Colors.cyanAccent), 'GitHub Zoo');
+  }
+  if (m.isUserModel) {
+    return chip(const Color(0xFF064E3B).withAlpha(160), const Color(0xFF059669), const Color(0xFF34D399), const Icon(Icons.person_outline_rounded, size: 13, color: Color(0xFF34D399)), m.creatorEmail.isNotEmpty ? 'User: ${m.creatorEmail.split('@')[0]}' : 'Community Model');
+  }
+  return const SizedBox.shrink();
+}
+

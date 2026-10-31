@@ -8,8 +8,9 @@ import '../widgets/common_widgets.dart';
 import '../widgets/model_card.dart';
 import 'add_edit_model_screen.dart';
 import 'model_detail_screen.dart';
-import 'login_screen.dart';
 import 'github_browser_screen.dart';
+import 'security_dashboard_screen.dart';
+import '../widgets/account_menu.dart';
 
 class ModelListScreen extends StatefulWidget {
   const ModelListScreen({super.key});
@@ -49,22 +50,31 @@ class _ModelListScreenState extends State<ModelListScreen> {
     _search.clear();
     p.setSearchQuery('');
     p.setSelectedCategory('All');
+    p.setSelectedSource('All');
   }
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final user = auth.currentUser;
     final p = context.watch<ModelProvider>();
+
+    if (user != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        p.updateCurrentUser(userId: user.uid, userEmail: user.email);
+      });
+    }
     final items = p.models;
     final gutter = pageGutter(context);
     final c = Theme.of(context).colorScheme;
     final t = Theme.of(context).textTheme;
     final filtersActive =
-        p.searchQuery.isNotEmpty || p.selectedCategory != 'All';
+        p.searchQuery.isNotEmpty || p.selectedCategory != 'All' || p.selectedSource != 'All';
 
     final countLabel = p.isLoading && items.isEmpty
         ? 'Loading…'
         : '${items.length} ${items.length == 1 ? 'model' : 'models'}'
-              '${filtersActive ? ' found' : ''}';
+              '${filtersActive ? ' found' : ' available in Hub'}';
 
     final Widget body;
     if (p.isLoading && items.isEmpty) {
@@ -78,29 +88,25 @@ class _ModelListScreenState extends State<ModelListScreen> {
         child: EmptyState(
           icon: Icons.cloud_off_outlined,
           title: 'Couldn’t load models',
-          message: 'Check your connection and try again.',
-          actionLabel: 'Try again',
+          message: p.errorMessage!,
+          actionLabel: 'Retry',
           onAction: p.loadModels,
         ),
       );
     } else if (items.isEmpty) {
       body = SliverFillRemaining(
         hasScrollBody: false,
-        child: filtersActive
-            ? EmptyState(
-                icon: Icons.search_off_outlined,
-                title: 'No matching models',
-                message: 'Try a different search or category.',
-                actionLabel: 'Clear filters',
-                onAction: () => _clearFilters(p),
-              )
-            : EmptyState(
-                icon: Icons.inventory_2_outlined,
-                title: 'No models yet',
-                message: 'Register your first model to track its accuracy, latency and dataset.',
-                actionLabel: 'Register a model',
-                onAction: _openAdd,
-              ),
+        child: EmptyState(
+          icon: filtersActive
+              ? Icons.filter_alt_off_outlined
+              : Icons.inventory_2_outlined,
+          title: filtersActive ? 'No matching models' : 'No models registered',
+          message: filtersActive
+              ? 'Try widening your search terms or picking another category.'
+              : 'Add your first ML model to the zoo or explore open-source GitHub models.',
+          actionLabel: filtersActive ? 'Clear filters' : 'Add model',
+          onAction: filtersActive ? () => _clearFilters(p) : _openAdd,
+        ),
       );
     } else {
       body = SliverPadding(
@@ -109,7 +115,7 @@ class _ModelListScreenState extends State<ModelListScreen> {
           itemCount: items.length,
           separatorBuilder: (_, _) => const SizedBox(height: Space.md),
           itemBuilder: (_, i) => ModelCard(
-            key: ValueKey(items[i].id),
+            key: ValueKey(items[i].id.isNotEmpty ? items[i].id : 'item-$i'),
             model: items[i],
             onTap: () => _openDetail(items[i]),
           ),
@@ -147,7 +153,7 @@ class _ModelListScreenState extends State<ModelListScreen> {
                           const Spacer(),
                           IconButton(
                             tooltip: 'Browse GitHub Models',
-                            icon: const Icon(Icons.terminal_rounded),
+                            icon: const Icon(Icons.terminal_rounded, color: Colors.cyanAccent),
                             onPressed: () {
                               Navigator.push(
                                 context,
@@ -157,25 +163,91 @@ class _ModelListScreenState extends State<ModelListScreen> {
                               );
                             },
                           ),
-                          const _AccountMenu(),
+                          IconButton(
+                            tooltip: 'Threat Defense Platform',
+                            icon: const Icon(Icons.shield_outlined, color: Color(0xFF38BDF8)),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const SecurityDashboardScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          const AccountMenu(),
                         ],
                       ),
-                      const SizedBox(height: Space.xxl),
-                      Text('Models', style: t.displaySmall),
-                      const SizedBox(height: Space.xs),
-                      Text(
-                        countLabel,
-                        style: t.bodyMedium?.copyWith(
-                          color: c.onSurfaceVariant,
+                      const SizedBox(height: Space.xl),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text('Models', style: t.displaySmall),
+                          const SizedBox(width: Space.md),
+                          Text(
+                            countLabel,
+                            style: t.bodyMedium?.copyWith(
+                              color: c.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: Space.md),
+
+                      // Quick Registry & Discovery Banner
+                      InkWell(
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const GithubBrowserScreen(),
+                          ),
+                        ),
+                        borderRadius: BorderRadius.circular(Radii.sm),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: Space.md, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0F172A),
+                            borderRadius: BorderRadius.circular(Radii.sm),
+                            border: Border.all(color: const Color(0xFF1E293B)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.hub_outlined, size: 16, color: Colors.cyanAccent),
+                              const SizedBox(width: Space.sm),
+                              Expanded(
+                                child: Text(
+                                  '${items.where((m) => m.verificationStatus == 'verified').length} Verified Models • Live Foundation Zoo',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF94A3B8),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              const Text(
+                                'Explore →',
+                                style: TextStyle(
+                                  color: Colors.cyanAccent,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      const SizedBox(height: Space.xl),
+                      const SizedBox(height: Space.lg),
+
+                      // Search bar
                       TextField(
                         controller: _search,
                         onChanged: p.setSearchQuery,
                         textInputAction: TextInputAction.search,
                         decoration: InputDecoration(
-                          hintText: 'Search models',
+                          hintText: 'Search all models (e.g. DeepSeek, YOLO, Whisper, LLaMA, XGBoost)...',
                           prefixIcon: const Icon(Icons.search, size: 20),
                           suffixIcon: _search.text.isEmpty
                               ? null
@@ -189,27 +261,15 @@ class _ModelListScreenState extends State<ModelListScreen> {
                                 ),
                         ),
                       ),
+                      const SizedBox(height: Space.md),
+
+                      // Single Clean ML Task Category Filter Bar
+                      _CategoryFilterBar(
+                        categories: p.categories,
+                        selected: p.selectedCategory,
+                        onSelect: p.setSelectedCategory,
+                      ),
                     ],
-                  ),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height: 36,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    padding: EdgeInsets.symmetric(horizontal: gutter),
-                    itemCount: p.categories.length,
-                    separatorBuilder: (_, _) =>
-                        const SizedBox(width: Space.sm),
-                    itemBuilder: (_, i) {
-                      final cat = p.categories[i];
-                      return _Pill(
-                        label: cat,
-                        selected: p.selectedCategory == cat,
-                        onTap: () => p.setSelectedCategory(cat),
-                      );
-                    },
                   ),
                 ),
               ),
@@ -222,119 +282,37 @@ class _ModelListScreenState extends State<ModelListScreen> {
   }
 }
 
-class _Pill extends StatelessWidget {
-  const _Pill({
-    required this.label,
+class _CategoryFilterBar extends StatelessWidget {
+  const _CategoryFilterBar({
+    required this.categories,
     required this.selected,
-    required this.onTap,
+    required this.onSelect,
   });
 
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
+  final List<String> categories;
+  final String selected;
+  final ValueChanged<String> onSelect;
 
   @override
   Widget build(BuildContext context) {
-    final c = Theme.of(context).colorScheme;
-    final t = Theme.of(context).textTheme;
-    return Material(
-      color: selected ? c.onSurface : Colors.transparent,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(Radii.sm),
-        side: BorderSide(color: selected ? c.onSurface : c.outlineVariant),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: Center(
-            child: Text(
-              label,
-              style: t.labelMedium?.copyWith(
-                color: selected ? c.surface : c.onSurface,
-              ),
-            ),
-          ),
-        ),
+    return SizedBox(
+      height: 38,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: categories.length,
+        separatorBuilder: (_, _) => const SizedBox(width: Space.sm),
+        itemBuilder: (context, i) {
+          final cat = categories[i];
+          final active = cat == selected;
+          return FilterChip(
+            selected: active,
+            showCheckmark: false,
+            label: Text(cat),
+            onSelected: (_) => onSelect(cat),
+          );
+        },
       ),
     );
   }
 }
 
-class _AccountMenu extends StatelessWidget {
-  const _AccountMenu();
-
-  @override
-  Widget build(BuildContext context) {
-    final user = context.select<AuthProvider, AuthUser?>((a) => a.currentUser);
-    final savedCount = context.select<ModelProvider, int>((p) => p.savedModels.length);
-    final c = Theme.of(context).colorScheme;
-    final t = Theme.of(context).textTheme;
-    final name = user?.displayName ?? '';
-    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
-
-    return PopupMenuButton<String>(
-      tooltip: 'Account',
-      offset: const Offset(0, 44),
-      onSelected: (v) async {
-        if (v == 'saved') {
-          context.read<ModelProvider>().setSelectedCategory('Saved');
-        } else if (v == 'signout') {
-          await context.read<AuthProvider>().logout();
-          if (context.mounted) {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => const LoginScreen()),
-              (route) => false,
-            );
-          }
-        }
-      },
-      itemBuilder: (_) => [
-        PopupMenuItem<String>(
-          enabled: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(name.isEmpty ? 'Account' : name, style: t.titleSmall),
-              if (user != null) Text(user.email, style: t.bodySmall),
-              if (user != null && user.role.isNotEmpty)
-                Text(
-                  user.role,
-                  style: t.labelSmall?.copyWith(color: c.primary),
-                ),
-            ],
-          ),
-        ),
-        const PopupMenuDivider(),
-        PopupMenuItem<String>(
-          value: 'saved',
-          child: Row(
-            children: [
-              const Icon(Icons.bookmark_outline_rounded, size: 18),
-              const SizedBox(width: 8),
-              Text('Saved Models ($savedCount)'),
-            ],
-          ),
-        ),
-        const PopupMenuDivider(),
-        const PopupMenuItem<String>(
-          value: 'signout',
-          child: Row(
-            children: [
-              Icon(Icons.logout_rounded, size: 18, color: Colors.redAccent),
-              SizedBox(width: 8),
-              Text('Sign out', style: TextStyle(color: Colors.redAccent)),
-            ],
-          ),
-        ),
-      ],
-      child: CircleAvatar(
-        radius: 16,
-        backgroundColor: c.surfaceContainerHigh,
-        child: Text(initial, style: t.labelMedium),
-      ),
-    );
-  }
-}

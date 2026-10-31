@@ -1,0 +1,28 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // 1. User-scoped model diagrams: Only the authenticated creator can write/delete in their own path
+    match /models/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size <= 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/(jpeg|png|webp|jpg)');
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // 2. Legacy / Root model image path with authentication, size, and MIME type validation
+    match /models/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.resource.size <= 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/(jpeg|png|webp|jpg)');
+    }
+
+    // Default deny for any other unspecified paths
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

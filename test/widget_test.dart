@@ -29,8 +29,8 @@ void main() {
     await tester.tap(demoBtn);
     await tester.pump(const Duration(milliseconds: 1200));
 
-    // Verify navigating to the Model List screen
-    expect(find.text('Models'), findsOneWidget);
+    // Verify navigating to the Decision Engine Shell screen
+    expect(find.text('Model Decision Engine'), findsOneWidget);
 
     // Verify account popup menu button is present and trigger logout
     final popupBtnFinder = find.byType(PopupMenuButton<String>);

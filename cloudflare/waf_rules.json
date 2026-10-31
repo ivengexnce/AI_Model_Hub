@@ -1,0 +1,30 @@
+{
+  "description": "BroML Cloudflare WAF & Security Ruleset",
+  "rules": [
+    {
+      "id": "broml-auth-rate-limit",
+      "action": "block",
+      "expression": "(http.request.uri.path contains \"/login\" or http.request.uri.path contains \"/register\" or http.request.uri.path contains \"/mfa\") and rate_limit(60s, 10)",
+      "description": "Enforce strict rate limits on authentication endpoints."
+    },
+    {
+      "id": "broml-bot-challenge",
+      "action": "managed_challenge",
+      "expression": "cf.bot_management.score < 30 or cf.threat_score > 40",
+      "description": "Issue managed challenge / Turnstile to low-reputation or automated bot requests."
+    },
+    {
+      "id": "broml-scanner-block",
+      "action": "block",
+      "expression": "http.user_agent contains \"sqlmap\" or http.user_agent contains \"nikto\" or http.user_agent contains \"acunetix\"",
+      "description": "Block automated vulnerability scanner tooling."
+    },
+    {
+      "id": "broml-ssl-enforce",
+      "action": "redirect",
+      "expression": "not ssl",
+      "description": "Force redirect all HTTP requests to secure HTTPS."
+    }
+  ]
+}
+

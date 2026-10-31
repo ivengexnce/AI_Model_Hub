@@ -1,15 +1,21 @@
 # Firebase Setup Guide for BroML
 
-This guide walks you through connecting **BroML** to a live Google Firebase backend for **Authentication**, **Cloud Storage** (model weights & preview images), and **Cloud Firestore** (real-time neural model registry).
+This guide walks you through connecting **BroML** to a live Google Firebase backend for **Authentication**, **Cloud Storage** (architecture diagrams and weights), and **Cloud Firestore** (real-time neural model registry) with production-grade declarative security rules.
 
 ---
 
-## 1. Current Project State
+## 1. Current Project State & Verification
 
-Currently, the application runs in **Safe Offline / Mock Mode**:
-* **Authentication**: Managed via [lib/providers/auth_provider.dart](file:///c:/Users/Admin/AndroidStudioProjects/meet_app/lib/providers/auth_provider.dart) with local state validation and one-tap guest login.
-* **Storage**: In [lib/services/firebase_storage_service.dart](file:///c:/Users/Admin/AndroidStudioProjects/meet_app/lib/services/firebase_storage_service.dart), if Firebase is uninitialized or offline, it falls back to placeholder architecture previews.
-* **Initialization**: [lib/main.dart](file:///c:/Users/Admin/AndroidStudioProjects/meet_app/lib/main.dart) uses guarded fallback `FirebaseOptions` inside a `try-catch` block so the app builds and runs without crashing when offline.
+* **Project ID**: `broml-app` (Project Number: `640800735490`)
+* **Storage Bucket**: `broml-app.firebasestorage.app`
+* **Package Name**: `com.example.aimodelhub.ai_model_hub`
+* **Local Debug SHA-1**: `2D:2C:A3:07:5F:DC:07:B4:59:57:18:E3:FC:D5:7D:2F:99:44:3A:EA` *(Verified: Matches OAuth client in [android/app/google-services.json](file:///c:/Users/Admin/AndroidStudioProjects/meet_app/android/app/google-services.json))*
+* **Configuration Files**:
+  * [android/app/google-services.json](file:///c:/Users/Admin/AndroidStudioProjects/meet_app/android/app/google-services.json): **Present & Valid**
+  * [.firebaserc](file:///c:/Users/Admin/AndroidStudioProjects/meet_app/.firebaserc): **Present (Default: broml-app)**
+  * [lib/firebase_options.dart](file:///c:/Users/Admin/AndroidStudioProjects/meet_app/lib/firebase_options.dart): **Generated & Active**
+  * [firestore.rules](file:///c:/Users/Admin/AndroidStudioProjects/meet_app/firestore.rules): **Production Hardened**
+  * [storage.rules](file:///c:/Users/Admin/AndroidStudioProjects/meet_app/storage.rules): **Production Hardened** (User-scoped `/models/{userId}/{fileName}`)
 
 ---
 
@@ -72,13 +78,13 @@ flutterfire configure
    plugins {
        id("com.android.application")
        id("dev.flutter.flutter-gradle-plugin")
-       id("com.google.gms.google-services") // Add if using manual setup
+       id("com.google.gms.google-services")
    }
    ```
 
 ---
 
-## 4. Enabling Firebase Services
+## 4. Enabling Firebase Services & Deploying Hardened Rules
 
 ### A. Firebase Authentication
 1. Go to **Firebase Console** -> **Build** -> **Authentication**.
@@ -86,36 +92,54 @@ flutterfire configure
 3. Under the **Sign-in method** tab, enable:
    * **Email/Password**
    * **Anonymous** (for the "Quick Demo Sign-In (Guest)" feature)
-   * *(Optional)* **Google**
-4. Verify dependencies in [pubspec.yaml](file:///c:/Users/Admin/AndroidStudioProjects/meet_app/pubspec.yaml):
-   ```yaml
-   dependencies:
-     firebase_core: ^3.1.0
-     firebase_auth: ^5.4.0
-     firebase_storage: ^12.1.0
-   ```
-   Then run `flutter pub get`.
+   * **Google** (Configure Web Client ID: `640800735490-vnk6dgbf23o80nlis3150cpp485omfsp.apps.googleusercontent.com`)
 
-### B. Firebase Cloud Storage
+### B. Cloud Storage & Production Rules
 1. Go to **Firebase Console** -> **Build** -> **Storage**.
-2. Click **Get Started** and select **Start in test mode** for development:
+2. Click **Get Started** and select your default Cloud Storage location (e.g., `us-central1`).
+3. Deploy the production rules from [storage.rules](file:///c:/Users/Admin/AndroidStudioProjects/meet_app/storage.rules) enforcing strict authentication, 5 MB file size caps, and `image/*` MIME type validation:
    ```javascript
    rules_version = '2';
    service firebase.storage {
      match /b/{bucket}/o {
-       match /{allPaths=**} {
-         allow read, write: if true; // Secure this before production!
+       match /models/{modelId}/{fileName} {
+         allow read: if true;
+         allow write: if request.auth != null
+                      && request.resource.size < 5 * 1024 * 1024
+                      && request.resource.contentType.matches('image/.*');
        }
      }
    }
    ```
-3. Choose your default Cloud Storage location (e.g., `us-central1`).
+
+### C. Cloud Firestore Security Rules
+Deploy the hardened declarative rules from [firestore.rules](file:///c:/Users/Admin/AndroidStudioProjects/meet_app/firestore.rules) to protect model documents against unauthorized tampering and BOLA/IDOR attacks:
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /models/{modelId} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && request.resource.data.name is string
+                    && request.resource.data.name.size() > 0;
+      allow update, delete: if request.auth != null
+                            && (resource.data.creatorId == request.auth.uid
+                                || resource.data.creatorEmail == request.auth.token.email);
+    }
+  }
+}
+```
 
 ---
 
-## 5. Connecting AuthProvider to Live Firebase
+## 5. Deploying Security Rules via Firebase CLI
 
-In [lib/providers/auth_provider.dart](file:///c:/Users/Admin/AndroidStudioProjects/meet_app/lib/providers/auth_provider.dart), live `FirebaseAuth` calls are already integrated with safe offline fallback. Once `firebase_options.dart` or `google-services.json` is provided, live authentication connects automatically.
+Deploy both security rule sets simultaneously using the Firebase CLI:
+
+```powershell
+firebase deploy --only firestore:rules,storage
+```
 
 ---
 
@@ -124,5 +148,9 @@ In [lib/providers/auth_provider.dart](file:///c:/Users/Admin/AndroidStudioProjec
 Once configured, run the app directly from the root workspace:
 
 ```powershell
-flutter run -d emulator-5554
+# Run in Chrome:
+flutter run -d chrome
+
+# Run on connected Android device or emulator:
+flutter run
 ```

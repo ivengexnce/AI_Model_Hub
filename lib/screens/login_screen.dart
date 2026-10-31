@@ -15,46 +15,37 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _obscure = true;
   bool _rememberMe = true;
 
-  late final AnimationController _fadeCtrl;
-  late final AnimationController _slideCtrl;
+  late final AnimationController _animCtrl;
   late final Animation<double> _fadeAnim;
   late final Animation<Offset> _slideAnim;
 
   @override
   void initState() {
     super.initState();
-
-    _fadeCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    );
-    _slideCtrl = AnimationController(
+    _animCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeInOut);
+    _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeInOut);
     _slideAnim = Tween<Offset>(
       begin: const Offset(0, 0.12),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOut));
-
-    _fadeCtrl.forward();
-    _slideCtrl.forward();
+    ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut));
+    _animCtrl.forward();
   }
 
   @override
   void dispose() {
     _email.dispose();
     _password.dispose();
-    _fadeCtrl.dispose();
-    _slideCtrl.dispose();
+    _animCtrl.dispose();
     super.dispose();
   }
 
@@ -362,83 +353,50 @@ class _LoginScreenState extends State<LoginScreen>
 class _GlowBlob extends StatelessWidget {
   final Color color;
   final double size;
-  final double? top;
-  final double? bottom;
-  final double? left;
-  final double? right;
-
-  const _GlowBlob({
-    required this.color,
-    required this.size,
-    this.top,
-    this.bottom,
-    this.left,
-    this.right,
-  });
+  final double? top, bottom, left, right;
+  const _GlowBlob({required this.color, required this.size, this.top, this.bottom, this.left, this.right});
 
   @override
-  Widget build(BuildContext context) {
-    return Positioned(
-      top: top,
-      bottom: bottom,
-      left: left,
-      right: right,
-      child: IgnorePointer(
-        child: Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Positioned(
+    top: top, bottom: bottom, left: left, right: right,
+    child: IgnorePointer(
+      child: Container(width: size, height: size, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
+    ),
+  );
 }
 
-// ── Google icon ───────────────────────────────────────────────────────────────
 class _GoogleIcon extends StatelessWidget {
   const _GoogleIcon();
-
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 18,
-      height: 18,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(3),
-      ),
+  Widget build(BuildContext context) => Image.asset(
+    'assets/google_logo.png',
+    width: 20,
+    height: 20,
+    fit: BoxFit.contain,
+    errorBuilder: (_, _, _) => Container(
+      width: 20, height: 20,
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(3)),
       alignment: Alignment.center,
-      child: const Text(
-        'G',
-        style: TextStyle(
-          color: Color(0xFF4285F4),
-          fontSize: 13,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
+      child: const Text('G', style: TextStyle(color: Color(0xFF4285F4), fontSize: 13, fontWeight: FontWeight.w900)),
+    ),
+  );
 }
 
-// ── GitHub icon ───────────────────────────────────────────────────────────────
 class _GitHubIcon extends StatelessWidget {
   const _GitHubIcon();
-
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      width: 18,
-      height: 18,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: isDark ? Colors.white : Colors.black,
-      ),
-      alignment: Alignment.center,
-      child: Icon(
-        Icons.terminal_rounded,
-        size: 12,
-        color: isDark ? Colors.black : Colors.white,
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Image.asset(
+      dark ? 'assets/github_logo_white.png' : 'assets/github_logo_black.png',
+      width: 20,
+      height: 20,
+      fit: BoxFit.contain,
+      errorBuilder: (_, _, _) => Container(
+        width: 20, height: 20,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: dark ? Colors.white : Colors.black),
+        alignment: Alignment.center,
+        child: Icon(Icons.terminal_rounded, size: 12, color: dark ? Colors.black : Colors.white),
       ),
     );
   }

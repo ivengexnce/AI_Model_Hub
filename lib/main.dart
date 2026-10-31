@@ -3,11 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 import 'providers/auth_provider.dart';
 import 'providers/model_provider.dart';
 import 'screens/login_screen.dart';
-import 'screens/model_list_screen.dart';
+import 'screens/main_shell_screen.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
@@ -23,35 +24,12 @@ void main() async {
 
   // Initialize Firebase
   try {
-    if (kIsWeb) {
-      await Firebase.initializeApp(
-        options: const FirebaseOptions(
-          apiKey: 'AIzaSyBgfZlPIRHuEy1E9YB66zGZNhG22I8Xcbg',
-          authDomain: 'broml-app.firebaseapp.com',
-          appId: '1:640800735490:web:broml_web_placeholder',
-          messagingSenderId: '640800735490',
-          projectId: 'broml-app',
-          storageBucket: 'broml-app.firebasestorage.app',
-        ),
-      );
-    } else {
-      try {
-        await Firebase.initializeApp();
-      } catch (_) {
-        await Firebase.initializeApp(
-          options: const FirebaseOptions(
-            apiKey: 'AIzaSyBgfZlPIRHuEy1E9YB66zGZNhG22I8Xcbg',
-            appId: '1:640800735490:android:e5bd1d38e364882b2b821b',
-            messagingSenderId: '640800735490',
-            projectId: 'broml-app',
-            storageBucket: 'broml-app.firebasestorage.app',
-          ),
-        );
-      }
-    }
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
     debugPrint('Firebase initialised for broml-app.');
   } catch (e) {
-    debugPrint('Firebase initialization error: $e');
+    debugPrint('Firebase initialization warning: $e');
   }
 
   runApp(const AiModelHubApp());
@@ -122,7 +100,7 @@ class _AppEntryState extends State<_AppEntry> {
       builder: (context, auth, _) => AnimatedSwitcher(
         duration: const Duration(milliseconds: 250),
         child: auth.isAuthenticated
-            ? const ModelListScreen(key: ValueKey('list'))
+            ? const MainShellScreen(key: ValueKey('shell'))
             : const LoginScreen(key: ValueKey('login')),
       ),
     );

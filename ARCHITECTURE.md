@@ -1,265 +1,190 @@
-# BroML (AI Model Hub) — System Architecture & Flowchart Specification
+# BroML — System Architecture & Engineering Specification
+
+**Product:** BroML — AI/ML Model Decision Intelligence Platform  
+**Specification Version:** 1.2.0 (Blueprint 1.0 Compliant)  
+**Target Environments:** Android / Mobile / Laptop / Desktop  
 
 ---
 
 ## 1. Executive Overview
 
-**BroML** (*Neural Architecture Hub & Model Registry*) is a cross-platform Flutter application engineered for machine learning practitioners to register, benchmark, inspect, and explore artificial intelligence models. The system integrates Google Firebase for authentication and cloud persistence, GitHub REST APIs for open-source model repository discovery, and an interactive 3D perspective rendering engine for visual engagement.
+**BroML** is an AI/ML Model Decision Intelligence platform that helps developers, students, and machine learning engineers select suitable machine learning models based on project requirements, real hardware limitations, latency expectations, and licensing constraints.
+
+Rather than acting as an uncurated directory or ranking models by popularity, BroML solves the engineering question:
+
+> *"Given my real hardware resources and deployment constraints, which models are compatible, what are their architectural trade-offs, and what evidence supports the recommendation?"*
+
+### Core Architectural Pillars
+1. **Hardware Auto-Detection & Laptop Profiling**: Dynamically discovers host memory and CPU core counts (or applies target presets like Budget 4GB Laptops) and calculates a safe ML memory budget so the user's laptop never stutters, freezes, or thermal throttles.
+2. **Deterministic Recommendation & Rejection Engine**: Applies two-phase decision intelligence:
+   - **Phase 1 Hard Constraint Filtering**: Incompatible candidates are eliminated with transparent, human-readable rejection reasons (RAM overflow, VRAM requirement, latency violation, license incompatibility).
+   - **Phase 2 Feature Normalization & Multi-Attribute Scoring**: Eligible candidates are normalized across Benchmark Accuracy (0.35), CPU Latency (0.25), Memory Efficiency (0.20), Parameter Efficiency (0.10), and Commercial License (0.10).
+3. **Side-by-Side Technical Comparison Matrix**: Compares shortlisted candidates head-to-head across latency on laptop CPUs, RAM footprint, benchmark fidelity, and key trade-offs.
+4. **Verified Canonical Model Catalog**: Pre-seeded with 30 verified canonical architectures spanning all 5 ML categories (Computer Vision, NLP, Audio & Speech, Tabular ML, RL, and On-Device LLMs) with verified benchmark metrics, parameter counts, zero-lag memory footprints, and paper links.
+5. **Enterprise Authentication & Threat Protection**: Multi-factor authentication (RFC 6238 TOTP), progressive rate-limiting, and Cloudflare Turnstile bot deterrence.
 
 ---
 
-## 2. High-Level System Architecture
+## 2. Decoupled 5-Tier System Architecture
 
-The codebase adheres to a clean, decoupled **Layered Reactive Architecture** powered by the **Provider** pattern:
+BroML is organized around a clean, layered architecture leveraging Flutter and the **Provider** reactive state pattern (`ChangeNotifier`):
 
 ```mermaid
 graph TD
-    subgraph UI_Layer ["1. Presentation Layer (UI & Widgets)"]
-        A1[MaterialApp / AppTheme] --> A2[_AppEntry Root Router]
-        A2 -->|Unauthenticated| B1[LoginScreen / RegisterScreen]
-        A2 -->|Authenticated| B2[ModelListScreen]
-        B2 --> B3[ModelDetailScreen]
-        B2 --> B4[AddEditModelScreen]
-        B2 --> B5[GithubBrowserScreen]
-        B2 -.-> C1[3D Animated Widgets & ModelCards]
+    subgraph Presentation_Layer ["1. Presentation Layer (Flutter UI)"]
+        A1[MainShellScreen - 3-Tab Shell]
+        A1 --> B1[DecisionEngineScreen - Requirement Builder & Shortlist]
+        A1 --> B2[ModelListScreen - Canonical Catalog & Feasibility HUD]
+        A1 --> B3[SavedDecisionsScreen - Architectural Audit Trail]
+        B1 --> B4[ModelComparisonScreen - Side-by-Side Matrix]
+        B1 & B2 --> B5[ModelDetailScreen - Deep Metric Inspector]
+        A1 -.-> B6[AccountMenu / Auth Screens]
     end
 
-    subgraph State_Layer ["2. State Management Layer (ChangeNotifiers)"]
-        D1[AuthProvider]
-        D2[ModelProvider]
+    subgraph State_Layer ["2. Reactive State Layer (ChangeNotifiers)"]
+        D1[AuthProvider - Sessions, RBAC & TOTP MFA]
+        D2[ModelProvider - Catalog Registry, Hardware Evaluation & Saved Decisions]
     end
 
-    subgraph Domain_Layer ["3. Domain Models"]
-        E1[AuthUser]
-        E2[MlModel]
-        E3[GithubRepo]
+    subgraph Domain_Layer ["3. Domain Models & Entities"]
+        E1[ProjectRequirement - Hardware Limits, Task, Latency, CPU/GPU Mode]
+        E2[MlModel - Parameters, RAM Footprint, Latency, Feasibility Badges]
+        E3[DecisionRecord - Historical Requirement, Selected Model & Trade-offs]
+        E4[DetectedHardwareProfile - Cores, RAM, Safe Budget, OOM Defense]
     end
 
-    subgraph Service_Layer ["4. Data & Service Infrastructure"]
-        F1[FirestoreService]
-        F2[FirebaseStorageService]
-        F3[GithubService]
-        F4[ApiService / Local Store]
-        F5[SharedPreferences]
+    subgraph Service_Layer ["4. Intelligence & Infrastructure Services"]
+        S1[HardwareDetectionService - Physical RAM Scanner & Laptop Presets]
+        S2[RecommendationEngine - Hard Filtering & Multi-Attribute Scoring]
+        S3[CanonicalCatalogService - 30 Verified Baseline Model Records]
+        S4[SecurityEngine - Rate Limiter, TOTP, Anti-Brute-Force]
+        S5[FirestoreService & SharedPreferences - Persistent Records]
     end
 
-    subgraph Backend_Layer ["5. External Clouds & Services"]
-        G1[(Google Firebase Auth)]
-        G2[(Cloud Firestore)]
-        G3[(Firebase Storage)]
-        G4[GitHub REST API v3]
-        G5[Google Play Services OAuth]
+    subgraph External_Layer ["5. External Platform & OS Layer"]
+        G1[Linux/Android /proc/meminfo & Platform.numberOfProcessors]
+        G2[Windows WMI / PowerShell TotalVisibleMemorySize]
+        G3[Hugging Face Hub API & Papers With Code Benchmarks]
+        G4[Firebase Authentication & Cloud Firestore]
     end
 
-    %% Connections
-    B1 -->|Invokes| D1
-    B2 -->|Consumes| D2
-    B3 & B4 -->|Updates| D2
-    B5 -->|Fetches & Imports| D2
-
-    D1 --> E1
-    D2 --> E2
-    B5 --> E3
-
-    D1 -->|Google / Email Auth| G1
-    D1 -->|Native Tokens| G5
-    D1 -->|Persist Session| F5
-
-    D2 --> F1
-    D2 --> F2
-    D2 --> F4
-    B5 --> F3
-
-    F1 --> G2
-    F2 --> G3
-    F3 --> G4
+    %% Wiring
+    B1 -->|Triggers Auto-Detect| S1
+    S1 --> G1 & G2
+    B1 -->|Evaluates Constraints| D2
+    D2 --> S2
+    S2 --> S3
+    B1 -->|Opens Side-by-Side Matrix| B4
+    B4 -->|Locks in Final Selection| D2
+    D2 --> S5
+    D1 --> S4 & G4
 ```
 
 ---
 
-## 3. Application Flowcharts
+## 3. Hardware Auto-Detection & Laptop Profiler Architecture
 
-### 3.1. Master Navigation & Lifecycle Flow
-
-```mermaid
-flowchart TD
-    Start([App Launch]) --> Init[Initialize Firebase & Orientations]
-    Init --> CheckSession[AuthProvider.restoreSession]
-    CheckSession --> IsAuth{Firebase User Active?}
-
-    IsAuth -- Yes --> Home[ModelListScreen Dashboard]
-    IsAuth -- No --> Login[LoginScreen]
-
-    Login -->|New User| Register[RegisterScreen]
-    Register -->|Account Created| Home
-    Login -->|Guest Button| GuestAuth[Quick Demo Guest Session]
-    GuestAuth --> Home
-    Login -->|Google / Email Auth| Authenticate[Validate Credentials]
-    Authenticate -->|Success| Home
-    Authenticate -->|Error| ShowError[Display Error Banner]
-    ShowError --> Login
-
-    Home -->|Search / Filter| FilterModels[Update ModelProvider Query]
-    FilterModels --> RefreshUI[Re-render Grid/List]
-
-    Home -->|Select Card| Detail[ModelDetailScreen]
-    Detail -->|3D Rotate / Inspect| ViewMetrics[View Accuracy, Latency & Spec]
-    Detail -->|Delete| DeleteModel[Delete from Firestore] --> Home
-    Detail -->|Edit| EditModel[AddEditModelScreen] --> SaveModel[Commit Changes] --> Home
-
-    Home -->|FAB '+' Tap| AddModel[AddEditModelScreen]
-    AddModel --> UploadImg[Pick Architecture Diagram]
-    UploadImg --> CommitNew[Save to Cloud Firestore] --> Home
-
-    Home -->|GitHub Icon Tap| GithubBrowser[GithubBrowserScreen]
-    GithubBrowser --> SearchRepo[Query GitHub ML Repos]
-    SearchRepo --> ImportRepo[Convert Repo to BroML Model]
-    ImportRepo --> AddModel
-
-    Home -->|User Menu Tapped| Profile[Profile Menu]
-    Profile -->|Sign Out| Logout[Clear Session & Google Sign-Out] --> Login
-```
-
----
-
-### 3.2. Authentication & Authorization Pipeline
+To guarantee that models run smoothly without lagging on standard laptops or edge devices:
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor User
-    participant LoginUI as LoginScreen
-    participant AuthP as AuthProvider
-    participant GPS as Google Play Services
-    participant FBAuth as Firebase Auth
-    participant Prefs as SharedPreferences
+    actor User as Developer / Student
+    participant UI as DecisionEngineScreen
+    participant HDS as HardwareDetectionService
+    participant OS as Host OS (/proc/meminfo / WMI)
+    participant Engine as RecommendationEngine
+    participant Catalog as CanonicalCatalogService
 
-    alt Google OAuth Flow
-        User->>LoginUI: Taps "Google" button
-        LoginUI->>AuthP: loginWithGoogle()
-        AuthP->>GPS: GoogleSignIn.signIn(serverClientId)
-        alt User Dismisses Picker
-            GPS-->>AuthP: null (cancelled)
-            AuthP-->>LoginUI: Returns false (no error)
-        else User Selects Google Account
-            GPS-->>AuthP: GoogleSignInAccount + ID Token
-            AuthP->>FBAuth: signInWithCredential(GoogleAuthProvider)
-            FBAuth-->>AuthP: UserCredential (uid, email, displayName)
-            AuthP->>Prefs: Persist session identifier
-            AuthP-->>LoginUI: Returns true
-            LoginUI->>User: Transitions to ModelListScreen
-        end
-    else Email & Password Flow
-        User->>LoginUI: Enters credentials & taps "Sign in"
-        LoginUI->>AuthP: login(email, password)
-        AuthP->>FBAuth: signInWithEmailAndPassword(email, pass)
-        alt Valid Credentials
-            FBAuth-->>AuthP: UserCredential
-            AuthP-->>LoginUI: Returns true
-        else Invalid Credentials
-            FBAuth-->>AuthP: FirebaseAuthException
-            AuthP-->>LoginUI: Returns mapped friendly error banner
-        end
-    end
+    User->>UI: Taps [⚡ Auto-Detect My Hardware] (or app bootstrap)
+    UI->>HDS: autoDetect()
+    HDS->>OS: Read total physical memory & CPU cores
+    OS-->>HDS: e.g. 8.0 GB RAM, 8 CPU Cores
+    HDS->>HDS: Calculate Safe ML Budget = 60% of total RAM (4.5 GB)<br/>Reserves 40% for OS & background apps
+    HDS-->>UI: DetectedHardwareProfile (Zero-Lag Guaranteed)
+    UI->>UI: Auto-configures RAM slider to 4.5 GB & CPU-only mode
+    UI->>Engine: evaluate(candidates, requirement)
+    Engine->>Catalog: Fetch canonical verified models
+    Engine->>Engine: Phase 1: Hard filter out models exceeding 4.5 GB RAM or requiring GPU
+    Engine->>Engine: Phase 2: Rank eligible models with normalized scoring
+    Engine-->>UI: Shortlist (Rank #1 + Runner-ups + Rejection Explanations)
+    UI-->>User: Displays Zero-Lag Shortlist & [Compare Candidates] button
 ```
+
+### Hardware Presets Supported:
+* **Budget Laptop (4 GB RAM, CPU-Only)**: Allocates safe 2.0 GB RAM budget. Designed for dual-core and quad-core budget laptops. Highlights models like `SqueezeNet-1.1`, `MobileNetV3-Small`, `TinyBERT-4L`, and `paraphrase-MiniLM-L3-v2`.
+* **Standard Work Laptop (8 GB RAM, CPU-Only)**: Allocates safe 4.5 GB RAM budget. Accommodates `EfficientNet-B0`, `ResNet-18`, `DistilBERT`, `YOLOv8n`, and `all-MiniLM-L6-v2`.
+* **GPU Workstation (16 GB RAM + Dedicated VRAM)**: Allocates 10.0 GB RAM and enables GPU-accelerated architectures like `RoBERTa-Base` and `YOLOv8s`.
 
 ---
 
-### 3.3. Model Data Management Flow (CRUD & Cloud Sync)
+## 4. Recommendation & Scoring Formulation (Blueprint Section 8)
 
-```mermaid
-flowchart LR
-    subgraph Input ["User Input"]
-        UI_Input[User Enters Model Info & Diagram]
-    end
+### Phase 1: Hard Constraint Elimination
+Any model $m \in M$ is immediately disqualified if:
+1. $m.\text{task} \neq R.\text{task}$
+2. $m.\text{minRamBytes} > R.\text{availableRamBytes}$
+3. $R.\text{cpuOnly} = \text{true} \land m.\text{minVramBytes} > 0$
+4. $R.\text{maxLatencyMs} \neq \text{null} \land m.\text{latencyMs} > R.\text{maxLatencyMs}$
+5. $R.\text{allowedLicenses} \neq \emptyset \land m.\text{license} \notin R.\text{allowedLicenses}$
 
-    subgraph ModelOps ["ModelProvider Workflow"]
-        Validate[Validate Name & Metrics]
-        ImgUpload{Custom Image Selected?}
-        UploadCloud[Upload to Firebase Storage]
-        SaveFirestore[Save Document to Cloud Firestore]
-        FallbackLocal[Cache in Local Memory / ModelList]
-    end
+### Phase 2: Multi-Attribute Weighted Scoring
+For all eligible models, features are normalized into $[0.0, 1.0]$:
+* **Accuracy Score**: $S_{\text{acc}} = \frac{\text{acc} - \min(\text{acc})}{\max(\text{acc}) - \min(\text{acc}) + \epsilon}$
+* **Latency Score**: $S_{\text{lat}} = \frac{\max(\text{lat}) - \text{lat}}{\max(\text{lat}) - \min(\text{lat}) + \epsilon}$
+* **RAM Efficiency**: $S_{\text{ram}} = \frac{\max(\text{ram}) - \text{ram}}{\max(\text{ram}) - \min(\text{ram}) + \epsilon}$
+* **Parameter Efficiency**: $S_{\text{param}} = \frac{\max(\text{params}) - \text{params}}{\max(\text{params}) - \min(\text{params}) + \epsilon}$
+* **License Favorability**: Permissive (Apache 2.0 / MIT / BSD) = 1.0; Copyleft (AGPL / GPL) = 0.5.
 
-    subgraph Storage ["Cloud / Local Tier"]
-        FStorage[(Firebase Storage Bucket)]
-        FStore[(Cloud Firestore 'models' Collection)]
-        StateList[Provider In-Memory State]
-    end
-
-    UI_Input --> Validate
-    Validate --> ImgUpload
-    ImgUpload -- Yes --> UploadCloud --> FStorage
-    ImgUpload -- No --> FallbackLocal
-    UploadCloud --> SaveFirestore
-    FallbackLocal --> SaveFirestore
-    SaveFirestore --> FStore
-    FStore --> StateList
-    StateList --> Render[ModelListScreen Grid Display]
-```
+$$\text{Total Score} = 100 \times \left( 0.35 S_{\text{acc}} + 0.25 S_{\text{lat}} + 0.20 S_{\text{ram}} + 0.10 S_{\text{param}} + 0.10 S_{\text{lic}} \right)$$
 
 ---
 
-## 4. Codebase Directory Map
+## 5. Side-by-Side Model Comparison Matrix (Blueprint Section 7)
+
+When 2 or more candidate models are shortlisted, `ModelComparisonScreen` renders a head-to-head technical matrix:
+
+| Metric Evaluated | Purpose & Diagnostic Value |
+| :--- | :--- |
+| **Laptop Feasibility Badge** | Identifies if model runs sub-30ms without lagging on typical laptop CPUs |
+| **Inference Latency** | Actual benchmark millisecond latency on standard CPU hardware |
+| **RAM Footprint** | Physical memory occupied by model weights and runtime tensor buffers |
+| **Parameter Count & Disk Size** | Model compression footprint and storage overhead |
+| **Benchmark Accuracy** | Standard evaluation metric (ImageNet Top-1, COCO mAP50-95, GLUE SST-2, MTEB) |
+| **Commercial License** | Identifies license compatibility for enterprise and commercial distribution |
+| **Key Trade-off Summary** | Human-readable explanation of why a developer would pick Model A over Model B |
+
+---
+
+## 6. Directory Hierarchy
 
 ```text
 meet_app/
-├── android/                             # Native Android project configuration
-│   ├── app/
-│   │   ├── build.gradle.kts             # AGP build rules, signing configs & dependencies
-│   │   ├── google-services.json         # Firebase project credentials & OAuth client mappings
-│   │   └── src/main/
-│   │       ├── AndroidManifest.xml      # App label (BroML), permissions, launcher intent
-│   │       └── res/mipmap-*/ic_launcher # 3D Quantum Tensor Cube app icons
-│   ├── build.gradle.kts                 # Root project Gradle configuration
-│   └── gradle.properties                # JVM heap configuration (-Xmx3072m, G1GC)
-├── assets/
-│   ├── logo.png                         # High-res BroML 3D Cube identity asset
-│   └── logo_small.png                   # Compact navigation bar branding asset
 ├── lib/
-│   ├── main.dart                        # Application entry point, multi-provider wiring, root router
+│   ├── main.dart                          # Application bootstrap & route configuration
 │   ├── models/
-│   │   └── ml_model.dart                # Core data entity: MlModel (metrics, latency, framework, dataset)
-│   ├── providers/
-│   │   ├── auth_provider.dart           # Authentication state, OAuth orchestration, session persistence
-│   │   └── model_provider.dart          # Registry state, category filter queries, Firestore sync
-│   ├── screens/
-│   │   ├── add_edit_model_screen.dart   # Model registration and modification form
-│   │   ├── github_browser_screen.dart   # Live GitHub repository search and model importer
-│   │   ├── login_screen.dart            # Animated sign-in portal (Google, GitHub, Email, Guest)
-│   │   ├── model_detail_screen.dart     # Deep inspection screen with interactive 3D card tilt
-│   │   ├── model_list_screen.dart       # Dashboard screen with search bar, category chips, and model grid
-│   │   └── register_screen.dart         # Account creation workflow
+│   │   ├── ml_model.dart                  # Model entity with technical specs & laptop feasibility
+│   │   ├── project_requirement.dart       # Project constraints & hardware limits
+│   │   └── decision_record.dart           # Persistent decision snapshot & trade-off rationale
 │   ├── services/
-│   │   ├── api_service.dart             # Local model seed catalog & fallback provider
-│   │   ├── firebase_storage_service.dart# Image picker & Firebase Storage asset uploader
-│   │   ├── firestore_service.dart       # Cloud Firestore NoSQL repository operations
-│   │   └── github_service.dart          # GitHub REST API v3 client for machine learning repositories
-│   ├── theme/
-│   │   └── app_theme.dart               # Dark/Light design system, neon cyan/indigo tokens, typography
+│   │   ├── hardware_detection_service.dart # Real host hardware scanner & laptop presets
+│   │   ├── recommendation_engine.dart     # Hard filtering & multi-attribute scoring
+│   │   ├── canonical_catalog_service.dart # 16 verified canonical models
+│   │   ├── security_engine.dart           # TOTP MFA, brute-force mitigation & audit logging
+│   │   └── firestore_service.dart         # Cloud synchronization & data persistence
+│   ├── screens/
+│   │   ├── main_shell_screen.dart         # 3-tab modern shell
+│   │   ├── decision_engine_screen.dart    # Requirement builder, auto-detect & shortlist
+│   │   ├── model_comparison_screen.dart   # Side-by-side technical matrix
+│   │   ├── model_list_screen.dart         # Model catalog with feasibility HUD
+│   │   ├── model_detail_screen.dart       # Deep model inspector & evidence links
+│   │   └── saved_decisions_screen.dart    # Decision history & audit reports
 │   └── widgets/
-│       ├── animated_3d_card.dart        # Gyro/touch 3D perspective rotation matrix widget
-│       ├── auth_shell.dart              # Glassmorphism container with backdrop filter glow
-│       ├── common_widgets.dart          # Skeleton loaders, ErrorBanners, ButtonSpinner, EmptyState
-│       ├── flip_3d_card.dart            # Dual-sided animated card flip on user tap
-│       ├── floating_3d_badge.dart       # Elevated floating pill badge with drop shadows
-│       ├── model_card.dart              # Interactive model card with performance indicators
-│       └── model_image.dart             # Cached image renderer with network placeholder fallbacks
-├── test/
-│   ├── auth_provider_test.dart          # Automated unit test suite (validation, session, auth rules)
-│   └── widget_test.dart                 # Component integration test (login -> model hub -> logout)
-├── web/                                 # Web platform assets, manifest.json & index.html
-└── pubspec.yaml                         # Dependencies (firebase_auth, firestore, google_sign_in, etc.)
+│       ├── model_card.dart                # Model card with memory footprint & laptop badges
+│       └── account_menu.dart              # Reusable profile & session menu
+└── test/
+    ├── hardware_detection_test.dart       # Hardware auto-detect & preset tests
+    ├── recommendation_engine_test.dart    # Constraint filtering & scoring verification
+    ├── widget_test.dart                   # Main shell navigation & session lifecycle
+    └── security_audit_test.dart           # Authentication & rate-limit tests
 ```
-
----
-
-## 5. Architectural Quality Matrix
-
-| Architectural Dimension | Implementation Strategy | Verification Metric |
-| :--- | :--- | :--- |
-| **Separation of Concerns** | Decoupled UI (screens/widgets), Logic (providers), and Services | `flutter analyze`: **0 issues** |
-| **Authentication Integrity** | Real Firebase Auth + OAuth 2.0 Web Client validation | Zero mock user fallbacks; real session restore |
-| **Persistence & Fallbacks** | Cloud Firestore with offline cache fallback | Seamless loading even on degraded networks |
-| **Responsiveness & UX** | 3D matrix transformations, curved animations, skeleton loading | Fluid 60 FPS transitions across form factors |
-| **Build Stability** | JVM memory tuned (`-Xmx3072m`), R8 optimization rules tailored | Debug and Release APKs compile with exit code 0 |

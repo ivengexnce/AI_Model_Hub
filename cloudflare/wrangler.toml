@@ -1,0 +1,8 @@
+name = "broml-security-edge"
+main = "worker.js"
+compatibility_date = "2026-10-31"
+
+[vars]
+TURNSTILE_SITE_KEY = "0x4AAAAAAAT_TurnstileDemoSiteKey"
+ENVIRONMENT = "production"
+
